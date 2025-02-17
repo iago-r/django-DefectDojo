@@ -760,7 +760,7 @@
                     </div>
                 {% endif %}
             </span>
-        </div>  
+        </div>
     {% endif %}
     {% comment %} Add a form to (ab)use to submit any actions related to similar/duplicates as POST requests {% endcomment %}
     <form method="post" style="display: none" id="related_action">
@@ -924,6 +924,8 @@
               <pre>{{ finding.description|markdown_render|default_if_none:"" }}</pre>
             </div>
         </div>
+
+        {% include "dojo/snippets/finding_metadata.html" with cves_metadata=cves_metadata %}
 
         {% if files %}
             <div class="row">
@@ -1588,5 +1590,32 @@
         });
     </script>
 
+    {% comment %} <script type="application/javascript">
+        const description = "{{ finding.description|escapejs }}";
+        console.log(description)
+        const cveRegex = /\*\*CVEs\*\*: (.*?)(?=\n|\*\*|$)/;
+        const match = description.match(cveRegex);
+
+        if (!match)
+        {
+            document.getElementById("cve_list").innerHTML = "<li>No CVEs found</li>"
+            console.log("no cve found")
+        }
+        else
+        {
+            const cve_list = match[1].split(",").map(cve => cve.trim());
+
+            const cvesList = document.getElementById("cve_list");
+            cve_list.forEach(cve => {
+                const listItem = document.createElement("li");
+                listItem.textContent = cve;
+                cvesList.appendChild(listItem);
+            });
+
+        }
+
+
+
+    </script> {% endcomment %}
     {% include "dojo/filter_js_snippet.html" %}
 {% endblock %}

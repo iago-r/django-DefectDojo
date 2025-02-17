@@ -5,8 +5,10 @@ import copy
 import json
 import logging
 import mimetypes
+import re
 from collections import OrderedDict, defaultdict
 from itertools import chain
+from dojo.crivo.datastore import DataStore
 
 from django.conf import settings
 from django.contrib import messages
@@ -27,7 +29,6 @@ from django.views import View
 from django.views.decorators.http import require_POST
 from imagekit import ImageSpec
 from imagekit.processors import ResizeToFill
-
 import dojo.finding.helper as finding_helper
 import dojo.jira_link.helper as jira_helper
 import dojo.risk_acceptance.helper as ra_helper
@@ -124,8 +125,10 @@ from dojo.utils import (
     reopen_external_issue,
     update_external_issue,
 )
+from polls_plugin.utils import get_user_votes
 
 JFORM_PUSH_TO_JIRA_MESSAGE = "jform.push_to_jira: %s"
+FINDING_DESCRIPTION_GET_CVES = re.compile(r"\*\*CVEs\*\*: (.+)")
 
 logger = logging.getLogger(__name__)
 
@@ -438,10 +441,12 @@ class ListFindings(View, BaseListFindings):
             self.get_prefetch_type())
         # Add some breadcrumbs
         request, context = self.add_breadcrumbs(request, context)
+        votes = get_user_votes(request.user.id)
         # Add the filtered and paged findings into the context
         context |= {
             "findings": paged_findings,
             "filtered": filtered_findings,
+            "user_votes": votes,
         }
         # Render the view
         return render(request, self.get_template(), context)
@@ -727,6 +732,69 @@ class ViewFinding(View):
 
         return request, False
 
+    def get_finding_metadata(self, finding: Finding):
+        CVE_CLASSIFICATION_THRESHOLD = 0.4  # empyrical, should be settable
+        cves_metadata = []
+        context = {
+            "cves_metadata": cves_metadata,
+        }
+
+        datastore = DataStore()
+        if not datastore._is_loaded:
+            return context
+
+        data = datastore.get_data()
+
+        match = FINDING_DESCRIPTION_GET_CVES.search(finding.description)
+        if not match:
+            logger.warning("No CVEs found in description")
+            return context
+        cves = [c.strip().lower() for c in match.group(1).split(",")]
+
+        for cve in cves:
+            if (metadata := data.get(cve, None)) is None:
+                logger.warning("Missing CVE metadata for %s", cve)
+                continue
+
+            epss_score = None
+            epss_percentile = None
+            cvss_score = None
+            cvss_label = "CVSS"
+            cve_classes = []
+
+            if (epss := metadata.get("epss")) is not None:
+                epss_score = round(epss["epss_score"], 2)
+                epss_percentile = round(epss["epss_percentile"], 2)
+
+            if (impact := metadata.get("impact")) is not None:
+                cvss_score = impact["cvss_score"]
+                cvss_label = f"CVSSv{impact['cvss_version']}"
+
+            in_kev = "kev" in metadata
+
+            if (class_dist := metadata.get("classification")) is not None:
+                cve_classes = [
+                    k.title() for k, v in class_dist.items() if v > CVE_CLASSIFICATION_THRESHOLD
+                ]
+
+            cwes = metadata.get("cwes")
+
+            cves_metadata.append(
+                [cve, epss_score, epss_percentile, cvss_label, cvss_score, in_kev, cve_classes, cwes]
+            )
+
+        def cve_sort_key(metadata):
+            in_kev = metadata[5]
+            epss_score = metadata[1]
+            cvss_score = metadata[4]
+            return (in_kev, epss_score, cvss_score)
+        cves_metadata = sorted(
+            cves_metadata,
+            key=cve_sort_key,
+            reverse=True,
+        )
+        return context
+
     def get_initial_context(self, request: HttpRequest, finding: Finding, user: Dojo_User):
         notes = finding.notes.all()
         note_type_activation = Note_Type.objects.filter(is_active=True).count()
@@ -773,6 +841,7 @@ class ViewFinding(View):
         context |= self.get_similar_findings(request, finding)
         context |= self.get_test_import_data(request, finding)
         context |= self.get_jira_data(finding)
+        context |= self.get_finding_metadata(finding)
         # Render the form
         return render(request, self.get_template(), context)
 
