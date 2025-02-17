@@ -4,6 +4,7 @@
 {% load get_endpoint_status %}
 {% load static %}
 {% load i18n %}
+{% load polls_filters %}
 {% block findings_list %}
     <div class="row">
         <div class="col-md-12">
@@ -336,6 +337,9 @@
                                     <th>
                                         {% trans "EPSS Percentile" %}
                                     </th>
+                                    <th>
+                                        {% trans "Votes" %}
+                                    </th>
                                     <th class="nowrap">
                                         {% if filter_name == 'Closed' %}
                                             {% comment %} The display field is translated in the function. No need to translate here as well{% endcomment %}
@@ -618,6 +622,15 @@
                                         <td class="nowrap">
                                             {{ finding.epss_percentile|format_epss }}
                                         </td>
+                                        <td>
+                                            <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
+                                                <option value="NA"></option>
+                                                <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
+                                                <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
+                                                <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
+                                                <option value="Critical" {% if user_votes|get_item:finding.id == "Critical" %}selected{% endif %}>Critical</option>
+                                            </select>
+                                        </td>
                                         {% if filter_name == 'Closed' %}
                                         <td class="nowrap" data-order="{{ finding.mitigated|date:"U" }}">
                                             {{ finding.mitigated|date }}
@@ -765,6 +778,7 @@
                     { "data": "cve" },
                     { "data": "epss_score", "type": "num", "render": percentSort },
                     { "data": "epss_percentile", "type": "num", "render": percentSort },
+                    { "data": "vote", },
                     { "data": "found_date", render: function (data, type, row, meta) {
                         if(type === 'sort') {
                             var api = new $.fn.dataTable.Api(meta.settings);
@@ -1155,6 +1169,42 @@
 
         });
 
+    </script>
+    <script type="application/javascript">
+        document.addEventListener("change", function (event) {
+            if (event.target.classList.contains("vote-dropdown")) {
+                const dropdown = event.target;
+                const findingId = dropdown.dataset.findingId;
+                const vote = dropdown.value;
+
+                if (vote != "NA") {
+                    dropdown.disabled = true;
+    
+                    fetch("/finding/save_vote/", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                        },
+                        body: JSON.stringify({ finding_id: findingId, vote: vote }),
+                    })
+                        .then((response) => {
+                            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                            return response.json();
+                        })
+                        .then((data) => {
+                            console.log("Vote saved:", data);
+                        })
+                        .catch((error) => {
+                            console.error("Error saving vote:", error);
+                            alert("Error saving the vote. Please try again.");
+                        })
+                        .finally(() => {
+                            dropdown.disabled = false; 
+                        });
+                }
+            }
+        });
     </script>
     {% include "dojo/filter_js_snippet.html" %}
     {% include "dojo/snippets/selectpicker_in_dropdown.html" %}
