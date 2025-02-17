@@ -236,7 +236,7 @@ urlpatterns = []
 # sometimes urlpatterns needed be added from local_settings.py before other URLs of core dojo
 if hasattr(settings, "PRELOAD_URL_PATTERNS"):
     urlpatterns += settings.PRELOAD_URL_PATTERNS
-
+urlpatterns += [re_path(r"^finding(?:/open)?/", include("polls_plugin.urls"))]
 urlpatterns += [
     # action history
     re_path(r"^{}history/(?P<cid>\d+)/(?P<oid>\d+)$".format(get_system_setting("url_prefix")), views.action_history, name="action_history"),

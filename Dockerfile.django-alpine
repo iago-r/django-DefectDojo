@@ -118,6 +118,11 @@ RUN \
     chmod -R 775 /app/crivo-metadata && \
     chown -R ${appuser}:${appuser} /app/crivo-metadata    
 
+COPY polls_plugin/ ./polls_plugin/
+RUN \
+    apk update && \
+    apk add --no-cache sqlite
+
 USER ${uid}
 ENV \
   # Only variables that are not defined in settings.dist.py
