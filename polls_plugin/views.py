@@ -2,7 +2,6 @@ import json
 import logging
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Max
 from django.http import JsonResponse
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
@@ -27,17 +26,27 @@ def save_user_vote(request):
 
         finding_id = int(data.get("finding_id"))
         vote_value = data.get("vote")
+        vote_type = data.get("vote_type")
 
-        if vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_CLASS]:
-            logger.error("Invalid vote value.")
+        if vote_type == "class" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_CLASS]:
+            logger.error("Invalid vote value for class.")
+            return JsonResponse({"error": "Invalid Vote"}, status=400)
+        elif vote_type == "num" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_NUM]:
+            logger.error("Invalid vote value for num.")
             return JsonResponse({"error": "Invalid Vote"}, status=400)
 
-        Vote.objects.create(
-            user_id=request.user.id,
-            finding_id=finding_id,
-            vote_class=vote_value,
-            timestamp=now(),
-        )
+        vote_kwargs = {
+            "user_id": request.user.id,
+            "finding_id": finding_id,
+            "timestamp": now(),
+        }
+
+        if vote_type == "class":
+            vote_kwargs["vote_class"] = vote_value
+        elif vote_type == "num":
+            vote_kwargs["vote_num"] = vote_value
+
+        Vote.objects.create(**vote_kwargs)
 
         return JsonResponse({"message": "Vote Saved"})
 
