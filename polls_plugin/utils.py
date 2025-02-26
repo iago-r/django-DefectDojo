@@ -1,19 +1,17 @@
-from django.db.models import Max
+from django.db.models import OuterRef, Subquery
 
 from .models import Vote
 
 
 def get_user_votes(user_id):
-    votes = (
-        Vote.objects.filter(user_id=user_id)
-        .values("finding_id")
-        .annotate(latest_timestamp=Max("timestamp"))
-        .order_by("finding_id", "-latest_timestamp")
+    latest_votes_subquery = (
+        Vote.objects.filter(user_id=user_id, finding_id=OuterRef("finding_id"))
+        .order_by("-timestamp")
+        .values("timestamp")[:1]
     )
 
-    latest_votes = Vote.objects.filter(
-        user_id=user_id,
-        timestamp__in=[v["latest_timestamp"] for v in votes],
-    ).values("finding_id", "vote_class")
+    latest_votes = Vote.objects.filter(user_id=user_id, timestamp=Subquery(latest_votes_subquery)).values(
+        "finding_id", "vote_class"
+    )
 
     return {str(v["finding_id"]): v["vote_class"] for v in latest_votes}
