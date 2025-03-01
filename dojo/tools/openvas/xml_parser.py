@@ -1,6 +1,7 @@
 from xml.dom import NamespaceErr
 
 from defusedxml import ElementTree as ET
+import pandas as pd
 
 from dojo.models import Finding
 
@@ -15,6 +16,9 @@ class OpenVASXMLParser:
             raise NamespaceErr(msg)
         report = root.find("report")
         results = report.find("results")
+        
+        df = pd.read_csv("/app/dojo/tools/openvas/epss_scores-2025-02-27.csv", low_memory=False, dtype={'cve': str, 'epss': 'float64', 'percentile': 'float64'})
+        
         for result in results:
             script_id = None
             for finding in result:
@@ -30,6 +34,14 @@ class OpenVASXMLParser:
                 if finding.tag == "nvt":
                     description.append(f"**NVT**: {finding.text}")
                     script_id = finding.get("oid") or finding.text
+                    
+                    #capture CVEs
+                    refs = finding.find("refs")
+                    cve_list = []
+                    
+                    if refs is not None:
+                        cve_list = [ref.get("id") for ref in refs.findall("ref") if ref.get("type") == "cve"]
+
                 if finding.tag == "severity":
                     severity = self.convert_cvss_score(finding.text)
                     description.append(f"**Severity**: {finding.text}")
@@ -38,6 +50,8 @@ class OpenVASXMLParser:
                 if finding.tag == "description":
                     description.append(f"**Description**: {finding.text}")
 
+            epss_score, epss_percentile = self.get_epss_data(cve_list, df)
+            
             finding = Finding(
                 title=str(title),
                 test=test,
@@ -46,9 +60,35 @@ class OpenVASXMLParser:
                 dynamic_finding=True,
                 static_finding=False,
                 vuln_id_from_tool=script_id,
+                epss_score=epss_score,
+                epss_percentile=epss_percentile
             )
             findings.append(finding)
         return findings
+
+    def get_epss_data(self, cve_list:list, df: pd.DataFrame):
+            
+        # if cve_list is
+        if not cve_list:
+            return None, None
+        
+        highest_epss = None
+        highest_percentile = None
+        
+        for cve in cve_list:
+            cve_instance = df[df["cve"] == cve]
+            
+            if not cve_instance.empty:
+                epss = cve_instance["epss"].values[0]
+                percentile = cve_instance["percentile"].values[0]
+                
+                if highest_epss == None or epss > highest_epss:
+                    highest_epss = epss
+                    highest_percentile = percentile
+                
+        return highest_epss, highest_percentile
+        
+            
 
     def convert_cvss_score(self, raw_value):
         val = float(raw_value)
