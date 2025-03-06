@@ -29,7 +29,7 @@ class Vote(models.Model):
     user_id = models.IntegerField()
     vote_class = models.CharField(max_length=10, choices=VOTE_CHOICES_CLASS)
     vote_num = models.CharField(max_length=10, choices=VOTE_CHOICES_NUM)
-    timestamp = models.DateTimeField(auto_now_add=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "votes"
