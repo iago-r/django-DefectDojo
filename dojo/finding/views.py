@@ -125,6 +125,8 @@ from dojo.utils import (
     update_external_issue,
 )
 
+from polls_plugin.utils import get_user_votes
+
 JFORM_PUSH_TO_JIRA_MESSAGE = "jform.push_to_jira: %s"
 
 logger = logging.getLogger(__name__)
@@ -438,10 +440,12 @@ class ListFindings(View, BaseListFindings):
             self.get_prefetch_type())
         # Add some breadcrumbs
         request, context = self.add_breadcrumbs(request, context)
+        votes = get_user_votes(request.user.id)
         # Add the filtered and paged findings into the context
         context |= {
             "findings": paged_findings,
             "filtered": filtered_findings,
+            "user_votes": votes,
         }
         # Render the view
         return render(request, self.get_template(), context)
