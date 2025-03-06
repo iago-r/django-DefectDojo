@@ -624,7 +624,7 @@
                                         </td>
                                         <td>
                                             <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
-                                                <option value="NA"></option>
+                                                <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
                                                 <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
                                                 <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
                                                 <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
@@ -1177,8 +1177,8 @@
                 const findingId = dropdown.dataset.findingId;
                 const vote = dropdown.value;
 
-                const VOTE_CHOICES_CLASS = ["Mild", "Moderate", "Severe", "Critical"];
-                const VOTE_CHOICES_NUM = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+                const VOTE_CHOICES_CLASS = ["NA", "Mild", "Moderate", "Severe", "Critical"];
+                const VOTE_CHOICES_NUM = ["NV", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
                 let vote_type = "unknown"
 

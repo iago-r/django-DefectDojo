@@ -3,7 +3,7 @@ from django.db import models
 
 class Vote(models.Model):
     VOTE_CHOICES_CLASS = [
-        ("NA", "NA"),
+        ("NA", "NA"),  # not available
         ("Mild", "Mild"),
         ("Moderate", "Moderate"),
         ("Severe", "Severe"),
@@ -11,6 +11,7 @@ class Vote(models.Model):
     ]
 
     VOTE_CHOICES_NUM = [
+        ("NV", "NV"),  # no value
         ("0", "0"),
         ("1", "1"),
         ("2", "2"),
@@ -28,7 +29,7 @@ class Vote(models.Model):
     user_id = models.IntegerField()
     vote_class = models.CharField(max_length=10, choices=VOTE_CHOICES_CLASS)
     vote_num = models.CharField(max_length=10, choices=VOTE_CHOICES_NUM)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=False)
 
     class Meta:
         db_table = "votes"
