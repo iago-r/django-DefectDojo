@@ -3,7 +3,7 @@ from django.db import models
 
 class Vote(models.Model):
     VOTE_CHOICES_CLASS = [
-        ("NA", "NA"),
+        ("NA", "NA"),  # not available
         ("Mild", "Mild"),
         ("Moderate", "Moderate"),
         ("Severe", "Severe"),
@@ -11,6 +11,7 @@ class Vote(models.Model):
     ]
 
     VOTE_CHOICES_NUM = [
+        ("NV", "NV"),  # no value
         ("0", "0"),
         ("1", "1"),
         ("2", "2"),
