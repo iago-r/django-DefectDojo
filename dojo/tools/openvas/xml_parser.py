@@ -1,7 +1,7 @@
 from xml.dom import NamespaceErr
 
 from defusedxml import ElementTree as ET
-import pandas as pd
+import csv
 
 from dojo.models import Finding
 
@@ -17,7 +17,12 @@ class OpenVASXMLParser:
         report = root.find("report")
         results = report.find("results")
         
-        df = pd.read_csv("/app/dojo/tools/openvas/epss_scores-2025-02-27.csv", low_memory=False, dtype={'cve': str, 'epss': 'float64', 'percentile': 'float64'})
+        cve_dataset = {}
+        
+        with open("/app/dojo/tools/openvas/epss_scores-2025-02-27.csv") as f:
+            file_reader = csv.reader(f)
+            for row in file_reader:
+                cve_dataset[row[0]] = (row[1], row[2])
         
         for result in results:
             script_id = None
@@ -50,7 +55,7 @@ class OpenVASXMLParser:
                 if finding.tag == "description":
                     description.append(f"**Description**: {finding.text}")
 
-            epss_score, epss_percentile = self.get_epss_data(cve_list, df)
+            epss_score, epss_percentile = self.get_epss_data(cve_list, cve_dataset)
             
             finding = Finding(
                 title=str(title),
@@ -66,7 +71,7 @@ class OpenVASXMLParser:
             findings.append(finding)
         return findings
 
-    def get_epss_data(self, cve_list:list, df: pd.DataFrame):
+    def get_epss_data(self, cve_list:list, cve_dataset: dict):
             
         # if cve_list is
         if not cve_list:
@@ -76,11 +81,11 @@ class OpenVASXMLParser:
         highest_percentile = None
         
         for cve in cve_list:
-            cve_instance = df[df["cve"] == cve]
+            cve_instance = cve_dataset.get(cve)
             
-            if not cve_instance.empty:
-                epss = cve_instance["epss"].values[0]
-                percentile = cve_instance["percentile"].values[0]
+            if cve_instance != None:
+                epss = cve_instance[0]
+                percentile = cve_instance[1]
                 
                 if highest_epss == None or epss > highest_epss:
                     highest_epss = epss
