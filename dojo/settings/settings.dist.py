@@ -104,6 +104,19 @@ env = environ.FileAwareEnv(
     DD_SOCIAL_AUTH_CREATE_USER=(bool, True),  # if True creates user at first login
     DD_SOCIAL_LOGIN_AUTO_REDIRECT=(bool, False),  # auto-redirect if there is only one social login method
     DD_SOCIAL_AUTH_TRAILING_SLASH=(bool, True),
+    DD_SOCIAL_AUTH_OIDC_AUTH_ENABLED=(bool, False),
+    DD_SOCIAL_AUTH_OIDC_OIDC_ENDPOINT=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_ID_KEY=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_KEY=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_SECRET=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_USERNAME_KEY=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_WHITELISTED_DOMAINS=(list, []),
+    DD_SOCIAL_AUTH_OIDC_JWT_ALGORITHMS=(list, ["RS256", "HS256"]),
+    DD_SOCIAL_AUTH_OIDC_ID_TOKEN_ISSUER=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_ACCESS_TOKEN_URL=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_AUTHORIZATION_URL=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_USERINFO_URL=(str, ""),
+    DD_SOCIAL_AUTH_OIDC_JWKS_URI=(str, ""),
     DD_SOCIAL_AUTH_AUTH0_OAUTH2_ENABLED=(bool, False),
     DD_SOCIAL_AUTH_AUTH0_KEY=(str, ""),
     DD_SOCIAL_AUTH_AUTH0_SECRET=(str, ""),
@@ -484,6 +497,7 @@ LOGIN_URL = env("DD_LOGIN_URL")
 
 # These are the individidual modules supported by social-auth
 AUTHENTICATION_BACKENDS = (
+    "social_core.backends.open_id_connect.OpenIdConnectAuth",
     "social_core.backends.auth0.Auth0OAuth2",
     "social_core.backends.google.GoogleOAuth2",
     "social_core.backends.okta.OktaOAuth2",
@@ -576,6 +590,31 @@ SOCIAL_AUTH_GITLAB_SCOPE = env("DD_SOCIAL_AUTH_GITLAB_SCOPE")
 if GITLAB_PROJECT_AUTO_IMPORT:
     SOCIAL_AUTH_GITLAB_SCOPE += ["read_repository"]
 
+# Mandatory settings
+OIDC_AUTH_ENABLED = env("DD_SOCIAL_AUTH_OIDC_AUTH_ENABLED")
+SOCIAL_AUTH_OIDC_OIDC_ENDPOINT = env("DD_SOCIAL_AUTH_OIDC_OIDC_ENDPOINT")
+SOCIAL_AUTH_OIDC_KEY = env("DD_SOCIAL_AUTH_OIDC_KEY")
+SOCIAL_AUTH_OIDC_SECRET = env("DD_SOCIAL_AUTH_OIDC_SECRET")
+# Optional settings
+if value := env("DD_SOCIAL_AUTH_OIDC_ID_KEY"):
+    SOCIAL_AUTH_OIDC_ID_KEY = value
+if value := env("DD_SOCIAL_AUTH_OIDC_USERNAME_KEY"):
+    SOCIAL_AUTH_OIDC_USERNAME_KEY = value
+if value := env("DD_SOCIAL_AUTH_OIDC_WHITELISTED_DOMAINS"):
+    SOCIAL_AUTH_OIDC_WHITELISTED_DOMAINS = env("DD_SOCIAL_AUTH_OIDC_WHITELISTED_DOMAINS")
+if value := env("DD_SOCIAL_AUTH_OIDC_JWT_ALGORITHMS"):
+    SOCIAL_AUTH_OIDC_JWT_ALGORITHMS = env("DD_SOCIAL_AUTH_OIDC_JWT_ALGORITHMS")
+if value := env("DD_SOCIAL_AUTH_OIDC_ID_TOKEN_ISSUER"):
+    SOCIAL_AUTH_OIDC_ID_TOKEN_ISSUER = value
+if value := env("DD_SOCIAL_AUTH_OIDC_ACCESS_TOKEN_URL"):
+    SOCIAL_AUTH_OIDC_ACCESS_TOKEN_URL = value
+if value := env("DD_SOCIAL_AUTH_OIDC_AUTHORIZATION_URL"):
+    SOCIAL_AUTH_OIDC_AUTHORIZATION_URL = value
+if value := env("DD_SOCIAL_AUTH_OIDC_USERINFO_URL"):
+    SOCIAL_AUTH_OIDC_USERINFO_URL = value
+if value := env("DD_SOCIAL_AUTH_OIDC_JWKS_URI"):
+    SOCIAL_AUTH_OIDC_JWKS_URI = value
+
 AUTH0_OAUTH2_ENABLED = env("DD_SOCIAL_AUTH_AUTH0_OAUTH2_ENABLED")
 SOCIAL_AUTH_AUTH0_KEY = env("DD_SOCIAL_AUTH_AUTH0_KEY")
 SOCIAL_AUTH_AUTH0_SECRET = env("DD_SOCIAL_AUTH_AUTH0_SECRET")
@@ -628,6 +667,7 @@ LOGIN_EXEMPT_URLS = (
     rf"^{URL_PREFIX}api/v2/",
     r"complete/",
     r"empty_questionnaire/([\d]+)/answer",
+    r"oauth2/idpresponse",
     rf"^{URL_PREFIX}password_reset/",
     rf"^{URL_PREFIX}forgot_username",
     rf"^{URL_PREFIX}reset/",
@@ -884,7 +924,7 @@ if env("DD_WHITENOISE"):
         # https://warehouse.python.org/project/whitenoise/
         "whitenoise.middleware.WhiteNoiseMiddleware",
     ]
-    MIDDLEWARE = MIDDLEWARE + WHITE_NOISE
+    MIDDLEWARE += WHITE_NOISE
 
 EMAIL_CONFIG = env.email_url(
     "DD_EMAIL_URL", default="smtp://user@:password@localhost:25")
@@ -901,10 +941,10 @@ vars().update(EMAIL_CONFIG)
 # https://djangosaml2.readthedocs.io/contents/setup.html#users-attributes-and-account-linking
 
 
-def saml2_attrib_map_format(dict):
+def saml2_attrib_map_format(din):
     dout = {}
-    for i in dict:
-        dout[i] = (dict[i],)
+    for i in din:
+        dout[i] = (din[i],)
     return dout
 
 
@@ -947,7 +987,7 @@ if SAML2_ENABLED:
         "entityid": str(SAML2_ENTITY_ID),
 
         # directory with attribute mapping
-        "attribute_map_dir": Path(BASEDIR) / "attribute-maps",
+        "attribute_map_dir": str(Path(BASEDIR) / "attribute-maps"),
         # do now discard attributes not specified in attribute-maps
         "allow_unknown_attributes": SAML_ALLOW_UNKNOWN_ATTRIBUTES,
         # this block states what services we provide
@@ -1149,6 +1189,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "dojo.tasks.evaluate_pro_proposition",
         "schedule": timedelta(hours=8),
     },
+    "clear_sessions": {
+        "task": "dojo.tasks.clear_sessions",
+        "schedule": crontab(hour=0, minute=0, day_of_week=0),
+    },
     # 'jira_status_reconciliation': {
     #     'task': 'dojo.tasks.jira_status_reconciliation_task',
     #     'schedule': timedelta(hours=12),
@@ -1202,6 +1246,7 @@ HASHCODE_FIELDS_PER_SCANNER = {
     "Aqua Scan": ["severity", "vulnerability_ids", "component_name", "component_version"],
     "Bandit Scan": ["file_path", "line", "vuln_id_from_tool"],
     "Burp Enterprise Scan": ["title", "severity", "cwe"],
+    "Burp Scan": ["title", "severity", "vuln_id_from_tool"],
     "CargoAudit Scan": ["vulnerability_ids", "severity", "component_name", "component_version", "vuln_id_from_tool"],
     "Checkmarx Scan": ["cwe", "severity", "file_path"],
     "Checkmarx OSA": ["vulnerability_ids", "component_name"],
@@ -1425,6 +1470,7 @@ DEDUPLICATION_ALGORITHM_PER_PARSER = {
     "Burp REST API": DEDUPE_ALGO_UNIQUE_ID_FROM_TOOL,
     "Bandit Scan": DEDUPE_ALGO_HASH_CODE,
     "Burp Enterprise Scan": DEDUPE_ALGO_HASH_CODE,
+    "Burp Scan": DEDUPE_ALGO_HASH_CODE,
     "CargoAudit Scan": DEDUPE_ALGO_HASH_CODE,
     "Checkmarx Scan detailed": DEDUPE_ALGO_UNIQUE_ID_FROM_TOOL,
     "Checkmarx Scan": DEDUPE_ALGO_HASH_CODE,
@@ -1755,9 +1801,12 @@ VULNERABILITY_URLS = {
     "ALBA-": "https://osv.dev/vulnerability/",  # e.g. https://osv.dev/vulnerability/ALBA-2019:3411
     "ALSA-": "https://osv.dev/vulnerability/",  # e.g. https://osv.dev/vulnerability/ALSA-2024:0827
     "AVD": "https://avd.aquasec.com/misconfig/",  # e.g. https://avd.aquasec.com/misconfig/avd-ksv-01010
+    "BAM-": "https://jira.atlassian.com/browse/",  # e.g. https://jira.atlassian.com/browse/BAM-25498
+    "BSERV-": "https://jira.atlassian.com/browse/",  # e.g. https://jira.atlassian.com/browse/BSERV-19020
     "C-": "https://hub.armosec.io/docs/",  # e.g. https://hub.armosec.io/docs/c-0085
     "CAPEC": "https://capec.mitre.org/data/definitions/&&.html",  # e.g. https://capec.mitre.org/data/definitions/157.html
     "CGA-": "https://images.chainguard.dev/security/",  # e.g. https://images.chainguard.dev/security/CGA-24pq-h5fw-43v3
+    "CONFSERVER-": "https://jira.atlassian.com/browse/",  # e.g. https://jira.atlassian.com/browse/CONFSERVER-93361
     "CVE-": "https://nvd.nist.gov/vuln/detail/",  # e.g. https://nvd.nist.gov/vuln/detail/cve-2022-22965
     "CWE": "https://cwe.mitre.org/data/definitions/&&.html",  # e.g. https://cwe.mitre.org/data/definitions/79.html
     "DLA-": "https://security-tracker.debian.org/tracker/",  # e.g. https://security-tracker.debian.org/tracker/DLA-3917-1
@@ -1768,8 +1817,13 @@ VULNERABILITY_URLS = {
     "FEDORA-": "https://bodhi.fedoraproject.org/updates/",  # e.g. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2024-06aa7dc422
     "GHSA-": "https://github.com/advisories/",  # e.g. https://github.com/advisories/GHSA-58vj-cv5w-v4v6
     "GLSA": "https://security.gentoo.org/",  # e.g. https://security.gentoo.org/glsa/202409-32
+    "JSDSERVER-": "https://jira.atlassian.com/browse/",  # e.g. https://jira.atlassian.com/browse/JSDSERVER-14872
     "KHV": "https://avd.aquasec.com/misconfig/kubernetes/",  # e.g. https://avd.aquasec.com/misconfig/kubernetes/khv045
+    "MGAA-": "https://advisories.mageia.org/&&.html",  # e.g. https://advisories.mageia.org/MGAA-2013-0054.html
+    "MGASA-": "https://advisories.mageia.org/&&.html",  # e.g. https://advisories.mageia.org/MGASA-2025-0023.html
     "OSV-": "https://osv.dev/vulnerability/",  # e.g. https://osv.dev/vulnerability/OSV-2024-1330
+    "PAN-SA-": "https://security.paloaltonetworks.com/",  # e.g. https://security.paloaltonetworks.com/PAN-SA-2024-0010
+    "PMASA-": "https://www.phpmyadmin.net/security/",  # e.g. https://www.phpmyadmin.net/security/PMASA-2025-1
     "PYSEC-": "https://osv.dev/vulnerability/",  # e.g. https://osv.dev/vulnerability/PYSEC-2024-48
     "RHBA-": "https://access.redhat.com/errata/",  # e.g. https://access.redhat.com/errata/RHBA-2024:2406
     "RHEA-": "https://access.redhat.com/errata/",  # e.g. https://access.redhat.com/errata/RHEA-2024:8857
@@ -1779,7 +1833,11 @@ VULNERABILITY_URLS = {
     "RUSTSEC-": "https://rustsec.org/advisories/",  # e.g. https://rustsec.org/advisories/RUSTSEC-2024-0432
     "RXSA-": "https://errata.rockylinux.org/",  # e.g. https://errata.rockylinux.org/RXSA-2024:4928
     "SNYK-": "https://snyk.io/vuln/",  # e.g. https://security.snyk.io/vuln/SNYK-JS-SOLANAWEB3JS-8453984
+    "SP-": "https://advisory.splunk.com/advisories/",  # e.g. https://advisory.splunk.com/advisories/SP-CAAANR7
+    "SUSE-SU-": "https://www.suse.com/support/update/announcement/",  # e.g. https://www.suse.com/support/update/announcement/2024/suse-su-20244196-1
+    "SVD-": "https://advisory.splunk.com/advisories/",  # e.g. https://advisory.splunk.com/advisories/SVD-2025-0103
     "TEMP-": "https://security-tracker.debian.org/tracker/",  # e.g. https://security-tracker.debian.org/tracker/TEMP-0841856-B18BAF
+    "TYPO3-": "https://typo3.org/security/advisory/",  # e.g. https://typo3.org/security/advisory/typo3-core-sa-2025-010
     "USN-": "https://ubuntu.com/security/notices/",  # e.g. https://ubuntu.com/security/notices/USN-6642-1
     "VNS": "https://vulners.com/",
 }
