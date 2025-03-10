@@ -1,3 +1,7 @@
+from django.apps import apps
+from django.urls import include, re_path
+
+
 CELERY_BEAT_SCHEDULE.update({
     "daily-cache-update": {
         "task": "dojo.problem.update_mappings.daily_cache_update",
@@ -13,3 +17,17 @@ CELERY_IMPORTS += ("dojo.problem.update_mappings",)
 # A finding-to-problem mapping covering Nmap, OpenVAS and Nuclei is available in
 # <https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json>
 PROBLEM_MAPPINGS_JSON_URL = None
+
+INSTALLED_APPS += ("polls_plugin",)
+
+DATABASES["polls"] = {
+    "ENGINE": "django.db.backends.sqlite3",
+    "NAME": "/app/crivo-metadata/findings_polls.db",
+}
+
+DATABASE_ROUTERS = ["polls_plugin.router.PollsRouter"]
+
+try:
+    MIGRATION_MODULES.update({"polls_plugin": "polls_plugin.migrations"})
+except NameError:
+    print("Error: MIGRATION_MODULES is not defined. Make sure it is defined before updating it.")
