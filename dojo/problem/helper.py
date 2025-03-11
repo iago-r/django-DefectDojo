@@ -58,11 +58,7 @@ def load_cached_json():
 
 
 def mapping_script_problem_id(mappings_json_findings):
-    return {
-        script_id: key
-        for key, script_ids in mappings_json_findings.items()
-        for script_id in script_ids
-    }
+    return {script_id: key for key, script_ids in mappings_json_findings.items() for script_id in script_ids}
 
 
 def save_json_to_cache(data):
