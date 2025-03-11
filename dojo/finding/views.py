@@ -124,7 +124,6 @@ from dojo.utils import (
     reopen_external_issue,
     update_external_issue,
 )
-
 from polls_plugin.utils import get_user_votes
 
 JFORM_PUSH_TO_JIRA_MESSAGE = "jform.push_to_jira: %s"

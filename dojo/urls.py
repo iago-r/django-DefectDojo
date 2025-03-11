@@ -237,7 +237,7 @@ urlpatterns = []
 if hasattr(settings, "PRELOAD_URL_PATTERNS"):
     urlpatterns += settings.PRELOAD_URL_PATTERNS
 
-urlpatterns += [re_path(r"^finding(?:/open)?/", include("polls_plugin.urls")),]
+urlpatterns += [re_path(r"^finding(?:/open)?/", include("polls_plugin.urls"))]
 
 urlpatterns += [
     # action history
