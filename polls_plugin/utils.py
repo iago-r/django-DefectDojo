@@ -11,7 +11,7 @@ def get_user_votes(user_id):
     )
 
     latest_votes = Vote.objects.filter(user_id=user_id, timestamp=Subquery(latest_votes_subquery)).values(
-        "finding_id", "vote_class"
+        "finding_id", "vote_class",
     )
 
     return {str(v["finding_id"]): v["vote_class"] for v in latest_votes}

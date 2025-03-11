@@ -31,7 +31,7 @@ def save_user_vote(request):
         if vote_type == "class" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_CLASS]:
             logger.error("Invalid vote value for class.")
             return JsonResponse({"error": "Invalid Vote"}, status=400)
-        elif vote_type == "num" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_NUM]:
+        if vote_type == "num" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_NUM]:
             logger.error("Invalid vote value for num.")
             return JsonResponse({"error": "Invalid Vote"}, status=400)
 
