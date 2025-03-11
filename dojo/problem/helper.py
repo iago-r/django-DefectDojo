@@ -24,7 +24,7 @@ def validate_json(data):
 
 def download_json(json_url):
     parsed_url = urlparse(json_url)
-    if parsed_url.scheme in ["http", "https"]:
+    if parsed_url.scheme in {"http", "https"}:
         logger.info("Downloading disambiguator JSON from %s", json_url)
         response = requests.get(json_url, timeout=5, verify=True)
         response.raise_for_status()
@@ -67,7 +67,7 @@ def save_json_to_cache(data):
         json.dump(data, f)
 
 
-def load_json(check_cache=True):
+def load_json(*, check_cache=True):
     try:
         if check_cache:
             cached_data = load_cached_json()
