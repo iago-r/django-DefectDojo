@@ -5,8 +5,12 @@ import copy
 import json
 import logging
 import mimetypes
+import re
+import csv
+import pickle
 from collections import OrderedDict, defaultdict
 from itertools import chain
+from dojo.data_store import DataStore
 
 from django.conf import settings
 from django.contrib import messages
@@ -27,7 +31,6 @@ from django.views import View
 from django.views.decorators.http import require_POST
 from imagekit import ImageSpec
 from imagekit.processors import ResizeToFill
-
 import dojo.finding.helper as finding_helper
 import dojo.jira_link.helper as jira_helper
 import dojo.risk_acceptance.helper as ra_helper
@@ -730,6 +733,132 @@ class ViewFinding(View):
 
         return request, False
 
+
+    def extract_cves(self, description: str):
+        match = re.search(r"\*\*CVEs\*\*: (.+)", description)
+        return list(map(str.strip, match.group(1).split(","))) if match else []
+
+    def get_finding_metadata(self, finding: Finding):
+              
+        cves = self.extract_cves(finding.description)
+        number_of_entries = 3
+        classification_threshold = 0.75
+
+        # TODO: UNCOMMENT NEXT LINES
+        data_store = DataStore()
+        data_status = {
+            "is_loaded": data_store._is_loaded
+        }
+        mocked_status = {
+            "is_loaded": True
+        }
+        mocked_metadata =  [['CVE-2025-22226', 
+                             0.4, 
+                             0.9,
+                             "CVSS V2", 
+                             6.0, 
+                             ['CVE-2025-22226', 'VMware', 'ESXi, Workstation, and Fusion', 'VMware ESXi, Workstation, and Fusion Information Disclosure Vulnerability', '2025-03-04', 'VMware ESXi, Workstation, and Fusion contain an information disclosure vulnerability due to an out-of-bounds read in HGFS. Successful exploitation allows an attacker with administrative privileges to a virtual machine to leak memory from the vmx process.', 'Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.', '2025-03-25', 'Unknown', 'https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25390 ; https://nvd.nist.gov/vuln/detail/CVE-2025-22226', 'CWE-125'], 
+                             None, 
+                             None], 
+                            ['CVE-2013-4783',
+                             0.02266, 
+                             0.89531,
+                             "CVSS V3", 
+                             10.0, 
+                             None, 
+                             {'remote code execution': 0.7769933342933655, 
+                              'privilege escalation': 0.20815275609493256, 
+                              'information disclosure': 0.009635896421968937, 
+                              'denial of service': 0.0013968084240332246, 
+                              'buffer overflow': 0.0011694903951138258, 
+                              'cross site request forgery': 0.0009166715899482369, 
+                              'sql injection': 0.0008741837809793651, 
+                              'cross site scripting': 0.0008607638301327825}, 
+                             'The Dell iDRAC6 with firmware 1.x before 1.92 and 2.x and 3.x before 3.42, and iDRAC7 with firmware before 1.23.23, allows remote attackers to bypass authentication and execute arbitrary IPMI commands by using cipher suite 0 (aka cipher zero) and an arbitrary password. NOTE: the vendor disputes the significance of this issue, stating "DRAC\'s are intended to be on a separate management network; they are not designed nor intended to be placed on or connected to the Internet."'
+                             ],
+                            ['CVE-123',
+                             0.6,
+                             0.9,
+                             "CVSS",
+                             9.0,
+                             None,
+                             None],
+                            ['CVE-234',
+                             0.01,
+                             0.9,
+                             "CVSS V1",
+                             9.0,
+                             None,
+                             None]]
+        
+        def sort_cve(d):
+            has_kve = d[5] is not None
+            val = d[1]
+            return (has_kve, val)
+        
+        mocked_metadata = sorted(mocked_metadata, key=sort_cve, reverse=True)
+        
+        for i in mocked_metadata:
+            if i[6] is not None:
+                i[6] = [j.title() for j in i[6] if i[6][j] > classification_threshold]
+        # cves_metadata = []
+        # if data_store._is_loaded:
+        #     data = data_store.get_data()
+            
+        #     for cve in cves:
+        #         epss_score = None
+        #         epss_percentile = None
+        #         cvssV2 = None
+        #         cvssV3 = None
+        #         cvss = None
+        #         kev = None
+        #         classification_dist = None
+        #         classification_desc = None
+                
+        #         cve_data = data.get(cve, None)
+                
+        #         if cve_data:
+        #             epss = cve_data.get("epss", {})
+        #             epss_score = epss.get("epss_score")
+                        # TODO: CAST FIELDS TO NUMBER
+
+        #             epss_percentile = epss.get("epss_percentile")
+
+        #             impact = cve_data.get("impact", {})
+        #             if "baseMetricV2" in impact:
+        #                 cvssV2 = impact["baseMetricV2"].get("cvssV2", {}).get("baseScore")
+
+        #             if "baseMetricV3" in impact:
+        #                 cvssV3 = impact["baseMetricV3"].get("cvssV3", {}).get("baseScore")
+
+        #             # Safely compare cvssV2 and cvssV3
+        #             if cvssV2 is not None and cvssV3 is not None:
+        #                 cvss = max(cvssV2, cvssV3)
+        #             else:
+        #                 cvss = cvssV2 if cvssV2 is not None else cvssV3
+        
+    #                 cvss_label = "CVSS" if cvss == None else "CVSS V2" if cvss == cvssV2 else "CVSS V3" if cvss == cvssV3
+
+        #             kev = cve_data.get("kev")
+
+
+        #             classification = cve_data.get("classification", {})
+        #             classification_dist = classification.get("class_prob_dist")
+        #             classes_above_threshold = [i.title() for i in classification_dist.keys() if classification_dist[i] > classification_threshold]
+                    
+        #             classification_desc = classification.get("description")
+                    
+        #         cves_metadata.append([cve, epss_score, epss_percentile, cvss_label, cvss kev, classification_dist, classification_desc])
+        # cves_metadata = sorted(cves_metadata, key=lambda cve: cve[1])
+            
+        
+        context = {
+            "cves_metadata": mocked_metadata,
+            "data_status": mocked_status
+        }
+        
+        return context
+
     def get_initial_context(self, request: HttpRequest, finding: Finding, user: Dojo_User):
         notes = finding.notes.all()
         note_type_activation = Note_Type.objects.filter(is_active=True).count()
@@ -776,6 +905,7 @@ class ViewFinding(View):
         context |= self.get_similar_findings(request, finding)
         context |= self.get_test_import_data(request, finding)
         context |= self.get_jira_data(finding)
+        context |= self.get_finding_metadata(finding)
         # Render the form
         return render(request, self.get_template(), context)
 

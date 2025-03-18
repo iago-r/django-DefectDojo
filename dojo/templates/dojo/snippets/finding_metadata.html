@@ -1,0 +1,86 @@
+{% load i18n %}
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4>
+      {% trans "Metadata" %}
+      <span class="pull-right">
+        <a data-toggle="collapse" href="#test_panel">
+          <i class="glyphicon glyphicon-chevron-{% if cves_metadata %}up{%else%}down{%endif%}"></i>
+        </a>
+      </span>
+    </h4>
+  </div>
+  <div id="test_panel" class="panel-body finding-description collapse {% if cves_metadata %}in{% endif %}">
+    {% if cves_metadata %}
+      <div class="kev_card_disclaimer">
+        * {% trans "Cards with a black border have a KEV (Known Exploited Vulnerability) associated with them!" %}
+      </div>
+      <div class="cve_dashboard">
+            {% for cve in cves_metadata %}
+
+              <div class="cve_card {% if cve.5 %} has_kev {% endif %}">
+                 <div class="cve_card_header  {% if cve.1 is none %}{% elif cve.1 < 0.2  %} mild {% elif cve.1 < 0.5 %} moderate {% else %} severe {% endif %} ">
+                  <div class="left">
+                    <a class="left" href="https://nvd.nist.gov/vuln/detail/{{ cve.0 }}">
+                      <h4>{{cve.0}}</h4>
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                  </div>
+                  <div class="right">
+                    <span class="epss">
+                      <p class="epss_val">
+                        EPSS:
+                      {% if cve.1 %}
+                       {{cve.1}}
+                      {% else %}
+                       {% trans "N/A" %}
+                      {% endif %}
+                    </p>
+                    </span>
+                    <span class="cvss">
+                      <p>{{cve.3}}:
+                      {% if cve.4 %}
+                       {{cve.4}}
+                      {% else %}
+                       {% trans "N/A" %}
+                      {% endif %}
+                    </p>
+                    </span>
+                  </div>
+                 </div>
+                
+                
+                 <div class="cve_card_body">
+                   <span class="classification">
+                     <h5>{% trans "CVE Relevant Properties Infered With AI"%}</h5>
+                    {% if cve.6 %}
+                      {% for val in cve.6 %}
+                        <p class="classification_item">{{val}}</p>
+                      {% endfor %}
+                    {% else %}
+                        <p class="classification_item">{% trans "N/A" %}</p>
+                    {% endif %}
+                  </span>
+
+
+                  {% comment %} <span class="description">
+                    <h5>{% trans "Description" %}</h5>
+                    {% if cve.6 %}
+                      <p>
+                        {{cve.6}}
+                      </p>
+                    {% else %}
+                      <p>
+                        {% trans "N/A" %}
+                      </p>
+                    {% endif %} {% endcomment %}
+
+                </div>
+              </div>
+            {% endfor %} 
+      </div>
+    {%else%} 
+      {% trans "No CVEs for this finding" %}
+    {%endif%}
+  </div>
+</div>

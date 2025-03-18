@@ -19,7 +19,7 @@ class OpenVASXMLParser:
         
         cve_dataset = {}
         
-        with open("/app/dojo/tools/openvas/epss_scores-2025-02-27.csv") as f:
+        with open("/app/cve-data/epss.csv") as f:
             file_reader = csv.reader(f)
             for row in file_reader:
                 cve_dataset[row[0]] = (row[1], row[2])
@@ -46,7 +46,10 @@ class OpenVASXMLParser:
                     
                     if refs is not None:
                         cve_list = [ref.get("id") for ref in refs.findall("ref") if ref.get("type") == "cve"]
-
+                        
+                    if cve_list:
+                        description.append(f"**CVEs**: {', '.join(cve_list)}")
+                    
                 if finding.tag == "severity":
                     severity = self.convert_cvss_score(finding.text)
                     description.append(f"**Severity**: {finding.text}")
@@ -55,7 +58,7 @@ class OpenVASXMLParser:
                 if finding.tag == "description":
                     description.append(f"**Description**: {finding.text}")
 
-            epss_score, epss_percentile = self.get_epss_data(cve_list, cve_dataset)
+            epss_score, epss_percentile, cve = self.get_epss_data(cve_list, cve_dataset)
             
             finding = Finding(
                 title=str(title),
@@ -66,7 +69,8 @@ class OpenVASXMLParser:
                 static_finding=False,
                 vuln_id_from_tool=script_id,
                 epss_score=epss_score,
-                epss_percentile=epss_percentile
+                epss_percentile=epss_percentile,
+                cve=cve
             )
             findings.append(finding)
         return findings
@@ -75,8 +79,9 @@ class OpenVASXMLParser:
             
         # if cve_list is
         if not cve_list:
-            return None, None
+            return None, None, None
         
+        highest_cve = None
         highest_epss = None
         highest_percentile = None
         
@@ -88,10 +93,11 @@ class OpenVASXMLParser:
                 percentile = cve_instance[1]
                 
                 if highest_epss == None or epss > highest_epss:
+                    highest_cve = cve
                     highest_epss = epss
                     highest_percentile = percentile
                 
-        return highest_epss, highest_percentile
+        return highest_epss, highest_percentile, highest_cve
         
             
 
