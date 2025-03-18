@@ -1,6 +1,6 @@
 # GT-CRIVO DefectDojo extensions
 
-Our project has made three main extensions to DefectDojo.  A key requirement our extensions support is that they make *zero* changes to DefectDojo's models or database; this ensures that any deployment using our extensions can be trivially reverted to a vanilla DefectDojo deployment by just changing the codebase.
+Our project has made three main extensions to DefectDojo:
 
 1. The ability to group `Findings` into `Problems`.  Our extension receives as input any mapping of `Findings` to `Problems`; one of which we have built using Artificial Intelligence to analyze the detection scripts used by scanning techniques.
 
@@ -8,17 +8,35 @@ Our project has made three main extensions to DefectDojo.  A key requirement our
 
 3. Integration of complementary metadata which to aid analysts investigate and troubleshoot a `Finding`.  The metadata are downloaded directly from [authoritative](https://www.first.org/epss/) [sources](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), and shown in Dojo's `Finding` view.  Some of the metadata we integrate [are also available as a paid feature in Dojo's Pro subscription](https://github.com/DefectDojo/django-DefectDojo/discussions/11796), which helps illustrate their usefulness.
 
-> A `Finding` is DefectDojo's terminology for any result (or "finding") reported by any of the integrated tools.  A `Finding` is somewhat of a catch-all structure given the wide spectrum of tools supported by DefectDojo, whose results are all stored in the same `Finding` class.  In the context of our project, `Finding`s come from network vulnerability scanners like Nuclei, Nmap, and OpenVAS.
+> A `Finding` is DefectDojo's terminology for any result (or "finding") reported by any of the integrated tools.  A `Finding` is somewhat of a catch-all structure that encompasses all tools supported by DefectDojo: results from all tools are stored in the same `Finding` class.  In the context of our project, `Finding`s come from network vulnerability scanners like Nuclei, Nmap, and OpenVAS.
 
-## Installation
+## Deployment
 
-Installation of our extensions follows the [normal installation procedure for DefectDojo](https://github.com/DefectDojo/django-DefectDojo/blob/master/readme-docs/DOCKER.md).  You should just follow the installation procedure on top of [our development branch](https://github.com/LeoOMaia/django-DefectDojo/tree/redis-problems).  (TODO: link to release on RNP's Git.)  We frequently rebase our changes on top of Dojo's `master` branch to keep up to date with fixes and improvements on the platform, which also make it easy to check [the changes we have made to the code](https://github.com/DefectDojo/django-DefectDojo/compare/master...LeoOMaia:django-DefectDojo:redis-problems).  (TODO: link to diff in RNP's Git.)
+We recommend deployment using [DefectDojo's Docker Compose installation instructions](https://github.com/DefectDojo/django-DefectDojo/blob/master/readme-docs/DOCKER.md#commands).  There are only two things to keep in mind:
+
+To use our modifications the `docker compose build` command needs to be executed on top of [our development branch](https://github.com/iago-r/django-DefectDojo/tree/crivo-dev) (which you likely already have checked out if you are reading this).
+
+**IMPORTANT:** Before bringing the containers up with `docker compose up`, be sure to run our initialization container, which will copy local metadata files in `./crivo-metadata` into a Docker volume used by the containers.
+
+As a result, the installation sequence looks like:
+
+```bash
+docker compose build
+docker compose \
+    -f docker-compose.yml -f docker-compose-crivo-init.yml \
+    up crivo-init
+docker compose up
+```
+
+We frequently rebase our changes on top of Dojo's `master` branch to keep up to date with fixes and improvements on the platform, which also make it easy to check [the changes we have made to the code](https://github.com/DefectDojo/django-DefectDojo/compare/master...iago-r:django-DefectDojo:crivo-dev).
+
+A key requirement our extensions support is that they make *zero* changes to DefectDojo's models or database; this ensures that any deployment using our extensions can be trivially reverted to a vanilla DefectDojo deployment by just changing the codebase.
 
 ## Configuration
 
 The development branch is already preconfigured to run Dojo with the default configuration for our extensions.  Following Dojo's installation procedure on top of our branch should get you a working deployment with the extensions preconfigured.  The information below is provided as documentation.
 
-We inject the configuration inside Dojo's running container by mounting a Docker volume inside the container.  The volume configuration is inside Dojo's `docker-compose.yml` file (TODO: permalink), and mounts the `crivo-metadata` directory inside our branch at `/app/crivo-metadata` inside the container.
+We inject the configuration inside Dojo's running container by mounting a Docker volume inside the container.  The volume configuration is [inside](https://github.com/cunha/django-DefectDojo/blob/099675ee002c929c4fda4222f30cd7e820244c22/docker-compose.yml#L54) Dojo's `docker-compose.yml` file.  Contents are copied inside the volume by the `crivo-init` container defined in `docker-compose-crivo-init.yml`.
 
 The configuration parameters below are provided inside Dojo's (actually Django's) `local_settings.py` file. (TODO: permalink)  The required files mentioned in the subsections below are already added to the `crivo-metadata` directory (TODO), and pointed to by the `local_settings.py`
 
