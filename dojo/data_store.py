@@ -71,7 +71,7 @@ class DataStore:
             )
         return data
     
-    def load_all_files(self, dir="/app/cve-data/"):
+    def load_all_files(self, dir="/app/crivo-metadata/cve-metadata/"):
         import os
         
         files = sorted([
