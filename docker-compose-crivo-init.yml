@@ -1,0 +1,8 @@
+services:
+  crivo-init:
+    image: curlimages/curl
+    user: root
+    entrypoint: ["sh", "-c", "chmod 777 /app/crivo-metadata ; curl https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json --output /app/crivo-metadata/disambiguator.json ; ls -al /app/crivo-metadata"]
+    volumes:
+      - defectdojo_crivo:/app/crivo-metadata:rw
+    restart: "no"

@@ -16,7 +16,7 @@ CELERY_IMPORTS += ("dojo.problem.update_mappings",)
 # You can check more information in https://pugna.snes.dcc.ufmg.br/defectdojo/README.md
 # A finding-to-problem mapping covering Nmap, OpenVAS and Nuclei is available in
 # <https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json>
-PROBLEM_MAPPINGS_JSON_URL = "https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json"
+PROBLEM_MAPPINGS_JSON_URL = "file:///app/crivo-metadata/disambiguator.json"
 
 INSTALLED_APPS += ("polls_plugin",)
 

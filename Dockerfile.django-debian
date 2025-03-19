@@ -117,6 +117,7 @@ RUN \
 
 # Configure the polls_plugin and dependencies
 COPY polls_plugin/ ./polls_plugin/
+RUN chown -R ${appuser}:${appuser} ./polls_plugin
 RUN \
     apt-get -y update && \
     apt-get -y install --no-install-recommends sqlite3 && \
