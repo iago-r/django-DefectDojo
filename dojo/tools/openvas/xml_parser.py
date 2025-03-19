@@ -18,8 +18,8 @@ class OpenVASXMLParser:
         results = report.find("results")
         
         cve_dataset = {}
-        
-        with open("/app/cve-data/epss.csv") as f:
+
+        with open("/app/crivo-metadata/cve-metadata/epss.csv") as f:
             file_reader = csv.reader(f)
             for row in file_reader:
                 cve_dataset[row[0]] = (row[1], row[2])
