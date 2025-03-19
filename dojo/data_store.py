@@ -27,8 +27,7 @@ class DataStore:
         filename, extension = os.path.splitext(os.path.basename(file_path))
         
         data = {}
-        # TODO: remove the following
-        print(f"Reading {os.path.basename(file_path)}")
+        logger.info(f"Reading {os.path.basename(file_path)}")
         if extension == ".json":
             with open(file_path, "r") as file:
                 data_raw = json.load((file))

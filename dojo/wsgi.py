@@ -31,10 +31,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dojo.settings.settings")
                 
 # This starts the data_store, a singleton class responsible for storing
 # finding metadata and provide it application wide
-# TODO: UNCOMMENT FOLLOWING LINES
-# data_store = DataStore()
-# t = threading.Thread(target=data_store.load_all_files, daemon=True)
-# t.start()
+data_store = DataStore()
+t = threading.Thread(target=data_store.load_all_files, daemon=True)
+t.start()
 
 # This application object is used by any WSGI server configured to use this
 # file. This includes Django's development server, if the WSGI_APPLICATION

@@ -61,23 +61,9 @@
                         <p class="classification_item">{% trans "N/A" %}</p>
                     {% endif %}
                   </span>
-
-
-                  {% comment %} <span class="description">
-                    <h5>{% trans "Description" %}</h5>
-                    {% if cve.6 %}
-                      <p>
-                        {{cve.6}}
-                      </p>
-                    {% else %}
-                      <p>
-                        {% trans "N/A" %}
-                      </p>
-                    {% endif %} {% endcomment %}
-
                 </div>
               </div>
-            {% endfor %} 
+            {% endfor %}
       </div>
     {%else%} 
       {% trans "No CVEs for this finding" %}
