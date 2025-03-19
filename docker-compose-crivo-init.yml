@@ -2,7 +2,27 @@ services:
   crivo-init:
     image: curlimages/curl
     user: root
-    entrypoint: ["sh", "-c", "chmod 777 /app/crivo-metadata ; curl https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json --output /app/crivo-metadata/disambiguator.json ; ls -al /app/crivo-metadata"]
+    entrypoint: ["sh", "-c", "chmod 777 /app/crivo-metadata ; \
+      mkdir /app/crivo-metadata/cve-metadata; \
+      curl https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json --output /app/crivo-metadata/disambiguator.json ; \
+      
+      yesterday=$$(date -d @$(($(date +%s) - 86400)) '+%Y-%m-%d') ; \
+      curl https://epss.empiricalsecurity.com/epss_scores-$$yesterday.csv.gz --output /app/crivo-metadata/cve-metadata/epss.csv.gz -v; \
+      gunzip -d /app/crivo-metadata/cve-metadata/epss.csv.gz; \
+
+      curl https://raw.githubusercontent.com/bernnardosbo/classification.pkl/main/cve-classification.pkl.gz --output /app/crivo-metadata/cve-metadata/classification.pkl.gz; \
+      gunzip -d /app/crivo-metadata/cve-metadata/classification.pkl.gz; \
+
+      curl https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv --output /app/crivo-metadata/cve-metadata/kev.csv; \
+      
+      for year in $$(seq 2002 2025) ; do \
+        curl https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-$$year.json.gz --output /app/crivo-metadata/cve-metadata/nvdcve-1.1-$$year.json.gz; \
+        gunzip -d /app/crivo-metadata/cve-metadata/nvdcve-1.1-$$year.json.gz; \
+      done ; \
+      ls -al /app/crivo-metadata"]
     volumes:
       - defectdojo_crivo:/app/crivo-metadata:rw
     restart: "no"
+
+volumes:
+  defectdojo_crivo: {}

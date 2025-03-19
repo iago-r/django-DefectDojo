@@ -15,6 +15,8 @@ framework.
 """
 import logging
 import os
+from dojo.data_store import DataStore
+import threading
 
 from django.core.wsgi import get_wsgi_application
 
@@ -25,6 +27,13 @@ logger = logging.getLogger(__name__)
 # mod_wsgi daemon mode with each site in its own daemon process, or use
 # os.environ["DJANGO_SETTINGS_MODULE"] = "dojo.settings"
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dojo.settings.settings")
+
+                
+# This starts the data_store, a singleton class responsible for storing
+# finding metadata and provide it application wide
+data_store = DataStore()
+t = threading.Thread(target=data_store.load_all_files, daemon=True)
+t.start()
 
 # This application object is used by any WSGI server configured to use this
 # file. This includes Django's development server, if the WSGI_APPLICATION

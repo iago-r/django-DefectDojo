@@ -5,8 +5,10 @@ import copy
 import json
 import logging
 import mimetypes
+import re
 from collections import OrderedDict, defaultdict
 from itertools import chain
+from dojo.data_store import DataStore
 
 from django.conf import settings
 from django.contrib import messages
@@ -27,7 +29,6 @@ from django.views import View
 from django.views.decorators.http import require_POST
 from imagekit import ImageSpec
 from imagekit.processors import ResizeToFill
-
 import dojo.finding.helper as finding_helper
 import dojo.jira_link.helper as jira_helper
 import dojo.risk_acceptance.helper as ra_helper
@@ -730,6 +731,79 @@ class ViewFinding(View):
 
         return request, False
 
+
+    def extract_cves(self, description: str):
+        match = re.search(r"\*\*CVEs\*\*: (.+)", description)
+        return list(map(str.strip, match.group(1).split(","))) if match else []
+
+    def get_finding_metadata(self, finding: Finding):
+              
+        cves = self.extract_cves(finding.description)
+        classification_threshold = 0.4
+
+        data_store = DataStore()
+        data_status = {
+            "is_loaded": data_store._is_loaded
+        }
+    
+        def sort_cve(d):
+            has_kve = d[5] is not None
+            val = d[1]
+            return (has_kve, val)
+        
+        cves_metadata = []
+        
+        if data_store._is_loaded:
+            data = data_store.get_data()
+            
+            for cve in cves:
+                epss_score = None
+                epss_percentile = None
+                cvss = None
+                cvss_label = "CVSS"
+                kev = None
+                classification_dist = None
+                classification_desc = None
+                classes_above_threshold = []
+                
+                cve_data = data.get(cve, None)
+                
+                if cve_data:
+                    epss = cve_data.get("epss", {})
+                    epss_score = epss.get("epss_score")
+                    epss_score = round(float(epss_score),2) if epss_score is not None else epss_score
+
+                    epss_percentile = epss.get("epss_percentile")
+
+                    impact = cve_data.get("impact", {})
+                    if "baseMetricV2" in impact:
+                        cvss = impact["baseMetricV2"].get("cvssV2", {}).get("baseScore")
+                        cvss_label = "CVSS V2"
+
+                    if "baseMetricV3" in impact:
+                        cvss = impact["baseMetricV3"].get("cvssV3", {}).get("baseScore")
+                        cvss_label = "CVSS V3"
+
+                    kev = cve_data.get("kev")
+
+                    classification = cve_data.get("classification", {})
+                    classification_dist = classification.get("class_prob_dist")
+                    if isinstance(classification_dist, dict):
+                        classes_above_threshold = [i.title() for i in classification_dist.keys() if classification_dist[i] > classification_threshold]
+                    
+                    classification_desc = classification.get("description")
+                    
+                cves_metadata.append([cve, epss_score, epss_percentile, cvss_label, cvss, kev, classes_above_threshold, classification_desc])
+        cves_metadata = sorted(cves_metadata, key=sort_cve, reverse=True)
+            
+        
+        context = {
+            "cves_metadata": cves_metadata,
+            "data_status": data_status
+        }
+        
+        return context
+
     def get_initial_context(self, request: HttpRequest, finding: Finding, user: Dojo_User):
         notes = finding.notes.all()
         note_type_activation = Note_Type.objects.filter(is_active=True).count()
@@ -776,6 +850,7 @@ class ViewFinding(View):
         context |= self.get_similar_findings(request, finding)
         context |= self.get_test_import_data(request, finding)
         context |= self.get_jira_data(finding)
+        context |= self.get_finding_metadata(finding)
         # Render the form
         return render(request, self.get_template(), context)
 
