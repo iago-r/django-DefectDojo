@@ -23,6 +23,3 @@ services:
     volumes:
       - defectdojo_crivo:/app/crivo-metadata:rw
     restart: "no"
-
-volumes:
-  defectdojo_crivo: {}

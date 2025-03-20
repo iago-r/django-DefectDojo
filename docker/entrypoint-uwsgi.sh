@@ -5,6 +5,9 @@ set -e  # needed to handle "exit" correctly
 . /secret-file-loader.sh
 . /reach_database.sh
 
+echo "Migrating Polls Plugin"
+python3 manage.py migrate polls_plugin --database=polls
+
 # Allow for bind-mount multiple settings.py overrides
 FILES=$(ls /app/docker/extra_settings/* 2>/dev/null || true)
 NUM_FILES=$(echo "$FILES" | wc -w)
