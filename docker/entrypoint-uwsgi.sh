@@ -5,7 +5,7 @@ set -e  # needed to handle "exit" correctly
 . /secret-file-loader.sh
 . /reach_database.sh
 
-echo "Migrating Polls Plugin"
+echo "Running migrations for Polls plugin"
 python3 manage.py migrate polls_plugin --database=polls
 
 # Allow for bind-mount multiple settings.py overrides

@@ -1,7 +1,7 @@
-import csv
 from xml.dom import NamespaceErr
 
 from defusedxml import ElementTree as ET
+import csv
 
 from dojo.models import Finding
 

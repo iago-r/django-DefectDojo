@@ -114,10 +114,8 @@ RUN \
 
 # Configure the polls_plugin and dependencies
 COPY polls_plugin/ ./polls_plugin/
-RUN \
-    apt-get -y update && \
-    apt-get -y install --no-install-recommends sqlite3 && \
-    rm -rf /var/cache/apk/* && \
+RUN apk update && \
+    apk add --no-cache sqlite && \
     mkdir -p /app/crivo-metadata && \
     chmod -R 775 /app/crivo-metadata && \
     chown -R ${appuser}:${appuser} /app/crivo-metadata
