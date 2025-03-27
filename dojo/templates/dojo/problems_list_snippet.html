@@ -38,6 +38,7 @@
                                     <th class="nowrap centered severity-sort">
                                         {% trans "Severity" %}
                                     </th>
+                                    <th>{% trans "SLA" %}</th>
                                     <th>{% dojo_sort request "Findings Count" "findings_count" %}</th>
                                     <th>{% dojo_sort request "Total Script IDs" "total_script_ids" %}</th>
                                 {% endblock %}
@@ -56,8 +57,15 @@
                                         {{ problem.severity }}
                                     </span>
                                 </td>
-                                <td>{{ problem.finding_ids|length }}</td>
-                                <td>{{ problem.script_ids|length }}</td>
+                                <td class="centered">
+                                    {{ problem.get_days_remaining }}
+                                </td>
+                                <td class="centered">
+                                    {{ problem.finding_ids|length }}
+                                </td>
+                                <td class="centered">
+                                    {{ problem.script_ids|length }}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -91,6 +99,15 @@
                     return type === 'export' ? getDojoExportValueFromTag(data, 'a') : data;
                 }},
                 { "data": "severity" },
+                { "data": "sla", "type": "num", render: function (data, type, row, meta) {
+                    if (type === 'sort') {
+                        var api = new $.fn.dataTable.Api(meta.settings);
+                        var td = api.cell({ row: meta.row, column: meta.col }).node();
+                        var extractedData = $(td).find("a").text().trim();
+                        return !isNaN(extractedData) && extractedData !== "" ? parseInt(extractedData, 10) : 9999;
+                    }
+                    return data;
+                }},
                 { "data": "findings_count", "type": "num" },
                 { "data": "total_script_ids", "type": "num" },
             ];
@@ -145,7 +162,7 @@
                     {
                         extend: 'copy',
                         exportOptions: {
-                            columns: [0, 1, 2, 3],
+                            columns: [0, 1, 2, 3, 4],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -159,7 +176,7 @@
                         orientation: 'landscape',
                         pageSize: 'LETTER',
                         exportOptions: {
-                            columns: [0, 1, 2, 3],
+                            columns: [0, 1, 2, 3, 4],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -171,7 +188,7 @@
                     {
                         extend: 'print',
                         exportOptions: {
-                            columns: [0, 1, 2, 3],
+                            columns: [0, 1, 2, 3, 4],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,

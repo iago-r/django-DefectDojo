@@ -291,6 +291,7 @@
                                     <th class="nowrap centered severity-sort">
                                         {% trans "Severity" %}
                                     </th>
+                                    <th>{% trans "SLA" %}</th>
                                     <th>{% trans "Script ID" %}</th>
                                     <th>{% trans "Reporter" %}</th>
                                     <th>{% dojo_sort request "Found By" "found_by" %}</th>
@@ -445,6 +446,9 @@
                                                 {{ finding.severity }}
                                             </span>
                                         </td>
+                                        <td class="centered">
+                                            {{ finding|finding_sla }}
+                                        </td>
                                         <td>{{ finding.vuln_id_from_tool }}</td>
                                         <td>
                                             {% if finding.reporter.get_full_name and finding.reporter.get_full_name.strip %}
@@ -501,6 +505,14 @@
                     return type === 'export' ? getDojoExportValueFromTag(data, 'a') : data;
                 }},
                 { "data": "severity" },
+                { "data": "sla", "type": "num", render: function (data, type, row, meta) {
+                    if(type === 'sort') {
+                        var api = new $.fn.dataTable.Api(meta.settings);
+                        var td = api.cell({row: meta.row, column: meta.col}).node();
+                        var data = $(td).find("a").text();
+                    }
+                    return data;
+                }},
                 { "data": "vuln_id_from_tool" },
                 { "data": "reporter" },
                 { "data": "found_by" },
@@ -594,7 +606,7 @@
                     {
                         extend: 'copy',
                         exportOptions: {
-                            columns: [2, 3, 4, 5, 6, 7],
+                            columns: [2, 3, 4, 5, 6, 7, 8],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -608,7 +620,7 @@
                         orientation: 'landscape',
                         pageSize: 'LETTER',
                         exportOptions: {
-                            columns: [2, 3, 4, 5, 6, 7],
+                            columns: [2, 3, 4, 5, 6, 7, 8],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -620,7 +632,7 @@
                     {
                         extend: 'print',
                         exportOptions: {
-                            columns: [2, 3, 4, 5, 6, 7],
+                            columns: [2, 3, 4, 5, 6, 7, 8],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,

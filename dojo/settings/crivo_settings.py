@@ -18,6 +18,12 @@ CELERY_IMPORTS += ("dojo.problem.update_mappings",)
 # <https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json>
 PROBLEM_MAPPINGS_JSON_URL = "file:///app/crivo-metadata/disambiguator.json"
 
+# We use the Redis container to store problems
+# For this to work, the Redis container must be named "django-defectdojo-redis-1"
+# If the Redis container is named differently, the problems will not be saved
+# You can change this by setting the environment variable below
+REDIS_CONTAINER_HOSTNAME = "django-defectdojo-redis-1"
+
 INSTALLED_APPS += ("polls_plugin",)
 
 DATABASES["polls"] = {

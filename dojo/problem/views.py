@@ -102,8 +102,12 @@ class ListOpenProblems(ListProblems):
 
     def get_problems(self, request: HttpRequest):
         list_problem = []
+        active_findings = set(
+            Finding.objects.filter(id__in=[fid for p in self.problems_map.values() for fid in p.finding_ids], active=True)
+            .values_list("id", flat=True),
+        )
         for _, problem in self.problems_map.items():
-            if any(Finding.objects.filter(id=finding_id, active=True) for finding_id in problem.finding_ids):
+            if any(finding_id in active_findings for finding_id in problem.finding_ids):
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -114,8 +118,12 @@ class ListClosedProblems(ListProblems):
 
     def get_problems(self, request: HttpRequest):
         list_problem = []
+        active_findings = set(
+            Finding.objects.filter(id__in=[fid for p in self.problems_map.values() for fid in p.finding_ids], active=True)
+            .values_list("id", flat=True),
+        )
         for _, problem in self.problems_map.items():
-            if not any(Finding.objects.filter(id=finding_id, active=True) for finding_id in problem.finding_ids):
+            if not any(finding_id in active_findings for finding_id in problem.finding_ids):
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
