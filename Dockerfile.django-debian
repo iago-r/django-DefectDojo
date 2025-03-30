@@ -97,6 +97,12 @@ RUN \
   chmod g=u dojo/migrations && \
   true
 USER root
+
+RUN \
+    mkdir -p /app/crivo-metadata && \
+    chmod -R 775 /app/crivo-metadata && \
+    chown -R ${appuser}:${appuser} /app/crivo-metadata
+
 RUN \
     addgroup --gid ${gid} ${appuser} && \
     adduser --system --no-create-home --disabled-password --gecos '' \
