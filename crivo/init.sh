@@ -5,6 +5,9 @@ STORAGE=/app/crivo-metadata
 
 chmod 777 $STORAGE
 
+curl --silent --output $STORAGE/disambiguator.json \
+        https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json
+
 mkdir -p $STORAGE/cve-metadata
 chmod 777 $STORAGE/cve-metadata
 
@@ -19,7 +22,7 @@ curl --location --silent --output $STORAGE/cve-metadata/kev.json \
 
 curl --location --silent --output $STORAGE/cve-metadata/cwe.xml.zip \
         https://cwe.mitre.org/data/xml/cwec_latest.xml.zip
-unzip $STORAGE/cve-metadata/cwe.xml.zip -d $STORAGE/cve-metadata/cwe
+unzip -u $STORAGE/cve-metadata/cwe.xml.zip -d $STORAGE/cve-metadata/cwe
 
 for year in $(seq 2002 2025) ; do
     curl --silent --output $STORAGE/cve-metadata/nvdcve-1.1-$year.json.gz \
