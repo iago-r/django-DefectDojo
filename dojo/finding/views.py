@@ -737,17 +737,6 @@ class ViewFinding(View):
         return list(map(str.strip, match.group(1).split(","))) if match else []
 
     def get_finding_metadata(self, finding: Finding):
-
-        cves = self.extract_cves(finding.description)
-
-        data_store = DataStore()
-
-        def cve_sort_key(d):
-            has_kve = True if d["cve_metadata"]["kev"] is not None else False
-            val = d["cve_metadata"]["epss_score"]
-            return (has_kve, val)
-
-    def get_finding_metadata(self, finding: Finding):
         cves_metadata = []
         context = {
             "cves_metadata": cves_metadata,
@@ -756,6 +745,7 @@ class ViewFinding(View):
 
         datastore = DataStore()
         if not datastore._is_loaded:
+            logger.debug("DataStore is not loaded")
             return context
 
         cves_metadata = datastore.get_metadata(finding.description)
