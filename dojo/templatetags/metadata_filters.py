@@ -22,8 +22,9 @@ def cwe_url(cwe_id: str) -> str:
     base_url = "https://cwe.mitre.org/data/definitions/"
     return f"{base_url}{cwe_id.split('-')[1]}.html" if cwe_id else ""
 
+
 @register.filter
-def split(string : str, delimiter: str) -> list[str]:
+def split(string: str, delimiter: str) -> list[str]:
     """
     Split a string by the delimiter and return the resulting list.
     Example: 'cpe:2.3:a:synacor:zimbra_collaboration_suite:8.8.15:-:*:*:*:*:*:*' -> ["cpe", "2.3", "a", "synacor", "zimbra_collaboration_suite", "8.8.15", "-", "*", "*", "*", "*", "*", "*"]

@@ -8,14 +8,20 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
+# ruff: noqa: S314
+
 WORKDIR = Path("/app/crivo-metadata/cve-metadata")
+
+logger = logging.getLogger(__name__)
+logging = logging.getLogger("metadata_processing")
 
 
 def process_epss_csv(basedir: Path, cve2meta: defaultdict[str, dict]):
     fp = basedir / "epss.csv.gz"
     if not fp.exists():
         logging.error("EPSS file not found (%s)", fp)
-        raise ValueError("EPSS file missing")
+        msg = "EPSS file missing"
+        raise ValueError(msg)
     logging.info("Loading EPSS data from %s", fp)
     with gzip.open(fp, "rt") as fd:
         _meta = fd.readline()
@@ -23,7 +29,8 @@ def process_epss_csv(basedir: Path, cve2meta: defaultdict[str, dict]):
         # todo: skip lines of current header
         if reader.fieldnames != ["cve", "epss", "percentile"]:
             logging.error("EPSS CVS file format changed, aborting")
-            raise ValueError("EPSS file format changed")
+            msg = "EPSS file format changed"
+            raise ValueError(msg)
         for row in reader:
             cve2meta[row["cve"].lower()]["epss"] = {
                 "epss_score": float(row["epss"]),
@@ -35,7 +42,8 @@ def process_kev_db(basedir: Path, cve2meta: dict[str, dict]):
     fp = basedir / "kev.json"
     if not fp.exists():
         logging.error("KEV file not found (%s)", fp)
-        raise ValueError("KEV file missing")
+        msg = "KEV file missing"
+        raise ValueError(msg)
     logging.info("Loading KVE database from %s", fp)
     with open(fp, encoding="utf8") as fd:
         kevdb = json.load(fd)
@@ -51,7 +59,8 @@ def merge_cve_classification(basedir: Path, cve2meta: dict[str, dict]):
     fp = basedir / "classification.pkl.gz"
     if not fp.exists():
         logging.warning("CVE classification file not found (%s)", fp)
-        raise ValueError("CVE classification file missing")
+        msg = "CVE classification file missing"
+        raise ValueError(msg)
     logging.info("Loading CVE classification data from %s", fp)
     with gzip.open(fp, "rb") as fd:
         cve2classification = pickle.load(fd)

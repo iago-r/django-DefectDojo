@@ -41,7 +41,7 @@ class Command(BaseCommand):
                 if detailed_vote:
                     votes_data.append(
                         {
-                            "finding_id": detailed_vote.finding_id,
+                            "id": detailed_vote.finding_id,
                             "user_id": detailed_vote.user_id,
                             "vote_class": detailed_vote.vote_class,
                             "timestamp": detailed_vote.timestamp.isoformat(),
