@@ -1,4 +1,5 @@
 import contextlib
+import logging
 from xml.dom import NamespaceErr
 
 from defusedxml import ElementTree as ET
@@ -7,6 +8,9 @@ import csv
 from dojo.models import Endpoint, Finding
 
 from dojo.crivo.datastore import DataStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class OpenVASXMLParser:
@@ -94,6 +98,10 @@ class OpenVASXMLParser:
 
     def get_epss_data(self, cve_list: list, cve_dataset: dict):
         if not cve_list:
+            return None, None, None
+
+        if not cve_dataset:
+            logger.debug("No cve_dataset, check for dataset in /app/crivo-metadata/cve-metadata")
             return None, None, None
 
         filtered_cves = [
