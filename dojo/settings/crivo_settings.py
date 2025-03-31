@@ -1,4 +1,5 @@
 # Vulnerability Aggregation (Problems)
+# ruff: noqa: F821, T201
 CELERY_BEAT_SCHEDULE.update(
     {
         "daily-cache-update": {
