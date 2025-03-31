@@ -120,7 +120,7 @@ RUN \
     mkdir -p /app/crivo-metadata && \
     chmod -R 775 /app/crivo-metadata && \
     chown -R ${appuser}:${appuser} /app/crivo-metadata
-    
+
 # Configure the polls_plugin and dependencies
 COPY polls_plugin/ ./polls_plugin/
 RUN \

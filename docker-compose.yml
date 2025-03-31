@@ -51,6 +51,7 @@ services:
         - type: bind
           source: ./docker/extra_settings
           target: /app/docker/extra_settings
+        - "defectdojo_crivo:/app/crivo-metadata"
         - "defectdojo_media:${DD_MEDIA_ROOT:-/app/media}"
         - "defectdojo_crivo:/app/crivo-metadata"
   celerybeat:

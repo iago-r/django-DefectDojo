@@ -5,8 +5,10 @@ import copy
 import json
 import logging
 import mimetypes
+import re
 from collections import OrderedDict, defaultdict
 from itertools import chain
+from dojo.crivo.datastore import DataStore
 
 from django.conf import settings
 from django.contrib import messages
@@ -27,7 +29,6 @@ from django.views import View
 from django.views.decorators.http import require_POST
 from imagekit import ImageSpec
 from imagekit.processors import ResizeToFill
-
 import dojo.finding.helper as finding_helper
 import dojo.jira_link.helper as jira_helper
 import dojo.risk_acceptance.helper as ra_helper
@@ -730,6 +731,40 @@ class ViewFinding(View):
 
         return request, False
 
+    # todo: move to datastore
+    def extract_cves(self, description: str):
+        match = re.search(r"\*\*CVEs\*\*: (.+)", description)
+        return list(map(str.strip, match.group(1).split(","))) if match else []
+
+    def get_finding_metadata(self, finding: Finding):
+
+        cves = self.extract_cves(finding.description)
+
+        data_store = DataStore()
+
+        def cve_sort_key(d):
+            has_kve = True if d["cve_metadata"]["kev"] is not None else False
+            val = d["cve_metadata"]["epss_score"]
+            return (has_kve, val)
+
+    def get_finding_metadata(self, finding: Finding):
+        cves_metadata = []
+        context = {
+            "cves_metadata": cves_metadata,
+            "metadata_loaded": False,
+        }
+
+        datastore = DataStore()
+        if not datastore._is_loaded:
+            return context
+
+        cves_metadata = datastore.get_metadata(finding.description)
+
+        return {
+            "cves_metadata": cves_metadata,
+            "metadata_loaded": True,
+        }
+
     def get_initial_context(self, request: HttpRequest, finding: Finding, user: Dojo_User):
         notes = finding.notes.all()
         note_type_activation = Note_Type.objects.filter(is_active=True).count()
@@ -776,6 +811,7 @@ class ViewFinding(View):
         context |= self.get_similar_findings(request, finding)
         context |= self.get_test_import_data(request, finding)
         context |= self.get_jira_data(finding)
+        context |= self.get_finding_metadata(finding)
         # Render the form
         return render(request, self.get_template(), context)
 
