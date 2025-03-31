@@ -1,0 +1,104 @@
+{% load metadata_filters %}
+<div class="cve_card {% if cve.cve_metadata.in_kev %}in_kev{% endif %} 
+        {% if cve.cve_metadata.epss_score < 0.2 %}mild
+        {% elif cve.cve_metadata.epss_score < 0.4 %}moderate
+        {% else %}severe
+        {% endif %}">
+        <div class="cve_card_header">
+            <a href="{{ cve.cve_id|cve_url }}" target="_blank">
+                <h5>{{ cve.cve_id }} <i class="fa-solid fa-arrow-up-right-from-square"></i></h5>
+            </a>
+            <div class="cve_header_scores">
+                <div class="scores">
+                    <span class="score_label">
+                        EPSS:
+                    </span>
+                    <span class="score_value">
+                        {{ cve.cve_metadata.epss_score }}
+                    </span>
+                </div>
+                <div class="scores">
+                    <span class="score_label"">
+                    {{cve.cve_metadata.cvss_label}}:
+                </span>
+                <span class=" score_value">
+                        {{ cve.cve_metadata.cvss_score }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cve_card_body">
+            <div class="left_column">
+                
+                <ul><li><h6>CVE Relevant Properties Infered With AI</h6></li>
+                    {% for class in cve.cve_metadata.cve_classes %}
+                    <li>{{ class }}</h6>
+                    {% endfor %}
+                    <li><h6 class="cwes">CWEs</h6></li>
+                        {% for cwe in cve.cve_metadata.cwes %}
+                        <a href="{{cwe.0|cwe_url}}">
+                    <li>{{cwe.0|upper}} <i class="fa-solid fa-arrow-up-right-from-square"></i></li>
+                    </a>
+                    {% endfor %}
+                </ul>
+
+            </div>
+            <div class="right_column">
+                
+            </div>
+        </div>
+        {% if cve.cve_metadata.cpes|length > 0  %}
+        <div class="cve_card_footer">
+            <a class="dropdown-toggle" data-toggle="collapse" href="#cpe_dropdown_menu_{{ cve.cve_id }}"
+                    aria-haspopup="true" aria-expanded="false">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </a>
+        </div>
+        {% endif %}
+
+
+    <div id="cpe_dropdown_menu_{{ cve.cve_id }}" class="card_dropdown collapse">
+        {% for cpe in cve.cve_metadata.cpes %}
+        {% with fields=cpe|split:":" %}
+        <div class="cpe-item">
+            <h3>CPE #{{ forloop.counter }}</h3>
+            <div class="cpe-details">
+                {% with part=fields.2 %}
+                {% if part != "*" %}
+                <div class="cpe-field">
+                    <span class="field-name">Part:</span>
+                    <span class="field-value">
+                        {% if part == "a" %}Application{% elif part == "o" %}Operating System{% elif part == "h"%}Hardware{% else %}{{ part }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                {% with vendor=fields.3 %}
+                {% if vendor != "*"%}
+                <div class="cpe-field">
+                    <span class="field-name">Vendor:</span>
+                    <span class="field-value">
+                        {{ vendor|split:"_"|join:" "|title }}
+                    </span>
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                {% with Product=fields.4 %}
+                {% if Product != "*"%}
+                <div class="cpe-field">
+                    <span class="field-name">Product:</span>
+                    <span class="field-value">
+                        {{ Product|split:"_"|join:" "|title }}
+                    </span>
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+    </div>
+</div>
