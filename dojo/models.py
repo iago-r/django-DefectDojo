@@ -2738,6 +2738,9 @@ class Finding(models.Model):
         else:
             logger.debug("no options selected that require finding post processing")
 
+        from dojo.problem.redis import Problem
+        Problem.add_finding(self)
+
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse("view_finding", args=[str(self.id)])
