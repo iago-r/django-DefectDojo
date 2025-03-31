@@ -17,7 +17,7 @@
     </h4>
   </div>
   <div id="test_panel" class="panel-body finding-description collapse {% if cves_metadata %}in{% endif %}">
-    {% if cves_metadata %}
+    {% if metadata_loaded %}
       <div class="kev_card_disclaimer">
         * {% trans "Cards with a black border have a KEV (Known Exploited Vulnerability) associated with them!" %}
       </div>
@@ -34,7 +34,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Find all CVE cards within the dashboard
-  const cveCards = Array.from(document.querySelectorAll('.cve_dashboard .cve_card'));
+  const cveCards = Array.from(document.querySelectorAll('.cve_dashboard .card_wrapper'));
   
   // If we have more than 8 cards, implement pagination
   if (cveCards.length > 8) {
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
 
         animateCards(currentlyVisible, nextBatch);
-        
+        equalizeCardHeights()
         currentlyVisible = nextBatch;
         
 
@@ -120,4 +120,49 @@ document.addEventListener('DOMContentLoaded', function() {
     cveDashboard.parentNode.insertBefore(loadMoreBtn, cveDashboard.nextSibling);
   }
 });
+</script>
+<script>
+    // Run this after the page loads or when the cards are rendered
+  function equalizeCardHeights() {
+    // Get all rows in the dashboard
+    const dashboard = document.querySelector('.cve_dashboard');
+    const numCols = 4; // Number of columns in your grid
+    
+    // Get all cards
+    const cards = document.querySelectorAll('.cve_card');
+    
+    // Process cards row by row
+    for (let i = 0; i < cards.length; i += numCols) {
+      // Get cards in current row
+      const rowCards = Array.from(cards).slice(i, i + numCols);
+      
+      // Find the tallest card in this row
+      let maxHeight = 0;
+      rowCards.forEach(card => {
+        // Reset height to auto to get natural height
+        card.style.height = 'auto';
+        const height = card.offsetHeight;
+        maxHeight = Math.max(maxHeight, height);
+      });
+      
+      // Set all cards in this row to the maximum height
+      rowCards.forEach(card => {
+        card.style.height = maxHeight + 'px';
+      });
+    }
+  }
+
+  // Run on page load
+  window.addEventListener('load', equalizeCardHeights);
+
+  // Run when window is resized
+  window.addEventListener('resize', equalizeCardHeights);
+
+  // Run when any dropdown is opened or closed
+  document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+    toggle.addEventListener('click', function() {
+      // Give time for collapse animation to finish
+      setTimeout(equalizeCardHeights, 400);
+    });
+  });
 </script>

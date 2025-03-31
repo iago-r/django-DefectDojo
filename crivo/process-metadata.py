@@ -3,27 +3,40 @@ import csv
 import gzip
 import json
 import logging
+import os
 import pickle
+import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
-WORKDIR = Path("/app/crivo-metadata/cve-metadata")
+# ruff: noqa: S314
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+WORKDIR = os.getenv("CRIVO_STORAGE_PATH")
+if WORKDIR is None:
+    logger.fatal("CRIVO_STORAGE_PATH is not set")
+    sys.exit(1)
+WORKDIR = Path(WORKDIR) / "cve-metadata"
 
 
 def process_epss_csv(basedir: Path, cve2meta: defaultdict[str, dict]):
     fp = basedir / "epss.csv.gz"
     if not fp.exists():
-        logging.error("EPSS file not found (%s)", fp)
-        raise ValueError("EPSS file missing")
-    logging.info("Loading EPSS data from %s", fp)
+        logger.error("EPSS file not found (%s)", fp)
+        msg = "EPSS file missing"
+        raise ValueError(msg)
+    logger.info("Loading EPSS data from %s", fp)
     with gzip.open(fp, "rt") as fd:
         _meta = fd.readline()
         reader = csv.DictReader(fd)
         # todo: skip lines of current header
         if reader.fieldnames != ["cve", "epss", "percentile"]:
-            logging.error("EPSS CVS file format changed, aborting")
-            raise ValueError("EPSS file format changed")
+            logger.error("EPSS CVS file format changed, aborting")
+            msg = "EPSS file format changed"
+            raise ValueError(msg)
         for row in reader:
             cve2meta[row["cve"].lower()]["epss"] = {
                 "epss_score": float(row["epss"]),
@@ -34,9 +47,10 @@ def process_epss_csv(basedir: Path, cve2meta: defaultdict[str, dict]):
 def process_kev_db(basedir: Path, cve2meta: dict[str, dict]):
     fp = basedir / "kev.json"
     if not fp.exists():
-        logging.error("KEV file not found (%s)", fp)
-        raise ValueError("KEV file missing")
-    logging.info("Loading KVE database from %s", fp)
+        logger.error("KEV file not found (%s)", fp)
+        msg = "KEV file missing"
+        raise ValueError(msg)
+    logger.info("Loading KVE database from %s", fp)
     with open(fp, encoding="utf8") as fd:
         kevdb = json.load(fd)
         for vuln in kevdb["vulnerabilities"]:
@@ -50,9 +64,10 @@ def process_kev_db(basedir: Path, cve2meta: dict[str, dict]):
 def merge_cve_classification(basedir: Path, cve2meta: dict[str, dict]):
     fp = basedir / "classification.pkl.gz"
     if not fp.exists():
-        logging.warning("CVE classification file not found (%s)", fp)
-        raise ValueError("CVE classification file missing")
-    logging.info("Loading CVE classification data from %s", fp)
+        logger.warning("CVE classification file not found (%s)", fp)
+        msg = "CVE classification file missing"
+        raise ValueError(msg)
+    logger.info("Loading CVE classification data from %s", fp)
     with gzip.open(fp, "rb") as fd:
         cve2classification = pickle.load(fd)
     for cve, classification in cve2classification.items():
@@ -88,7 +103,7 @@ def get_cpes(cvedata: dict) -> list[str]:
 
 def process_cve_files(basedir: Path, cwe2name: dict[str, str], cve2meta: dict[str, dict]):
     for fn in basedir.glob("nvdcve-1.1-*.json.gz"):
-        logging.info("Loading CVE data from %s", fn)
+        logger.info("Loading CVE data from %s", fn)
         with gzip.open(fn, "r") as fd:
             data = json.load(fd)
         for cvedata in data["CVE_Items"]:
@@ -113,7 +128,7 @@ def process_cve_files(basedir: Path, cwe2name: dict[str, str], cve2meta: dict[st
 def process_cwe_db(basedir: Path) -> dict[str, str]:
     cwe2name = {}
     for fn in basedir.glob("cwe/*.xml"):
-        logging.info("Loading CWE data from %s", fn)
+        logger.info("Loading CWE data from %s", fn)
         with open(fn, encoding="utf8") as fd:
             tree = ET.parse(fd)
 
@@ -179,7 +194,6 @@ def process_cwe_db(basedir: Path) -> dict[str, str]:
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     cve2meta = defaultdict(dict)
     process_epss_csv(WORKDIR, cve2meta)
     process_kev_db(WORKDIR, cve2meta)

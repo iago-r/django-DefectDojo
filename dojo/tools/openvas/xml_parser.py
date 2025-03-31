@@ -1,12 +1,13 @@
 import contextlib
+import logging
 from xml.dom import NamespaceErr
 
 from defusedxml import ElementTree as ET
-import csv
-
-from dojo.models import Endpoint, Finding
 
 from dojo.crivo.datastore import DataStore
+from dojo.models import Endpoint, Finding
+
+logger = logging.getLogger(__name__)
 
 
 class OpenVASXMLParser:
@@ -32,14 +33,14 @@ class OpenVASXMLParser:
                 if field.tag == "name":
                     title = field.text
                     description = [f"**Name**: {field.text}"]
-                if field.tag == "hostname":
-                    title = title + "_" + field.text
-                    description.append(f"**Hostname**: {field.text}")
-                    if field.text:
-                        unsaved_endpoint.host = field.text.strip()  # strip due to https://github.com/greenbone/gvmd/issues/2378
                 if field.tag == "host":
                     title = title + "_" + field.text
                     description.append(f"**Host**: {field.text}")
+
+                    # capture hostname correctly
+                    hostname = field.find("hostname")
+                    description.append(f"**Hostname**: {hostname.text}")
+
                     if not unsaved_endpoint.host and field.text:
                         unsaved_endpoint.host = field.text.strip()  # strip due to https://github.com/greenbone/gvmd/issues/2378
                 if field.tag == "port":
@@ -64,6 +65,11 @@ class OpenVASXMLParser:
                     if cve_list:
                         description.append(f"**CVEs**: {', '.join(cve_list)}")
 
+                    # capture solution attribute and type
+                    solution = field.find('solution').attrib['type']
+                    solution_text  = field.find('solution').text
+                    mitigation_text = str(solution) + '\n\n' + str(solution_text)
+
                 if field.tag == "severity":
                     description.append(f"**Severity**: {field.text}")
                 if field.tag == "threat":
@@ -87,6 +93,7 @@ class OpenVASXMLParser:
                 epss_score=epss_score,
                 epss_percentile=epss_percentile,
                 cve=cve,
+                mitigation=mitigation_text
             )
             finding.unsaved_endpoints = [unsaved_endpoint]
             findings.append(finding)
@@ -94,6 +101,10 @@ class OpenVASXMLParser:
 
     def get_epss_data(self, cve_list: list, cve_dataset: dict):
         if not cve_list:
+            return None, None, None
+
+        if not cve_dataset:
+            logger.debug("No cve_dataset, check for dataset in /app/crivo-metadata/cve-metadata")
             return None, None, None
 
         filtered_cves = [
@@ -106,7 +117,6 @@ class OpenVASXMLParser:
         ]
         filtered_cves.sort(reverse=True)
         return filtered_cves[0]
-
 
     def convert_cvss_score(self, raw_value):
         val = float(raw_value)

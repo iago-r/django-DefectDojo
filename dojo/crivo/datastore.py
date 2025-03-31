@@ -26,6 +26,7 @@ class DataStore:
         return cls._instance
 
     def load(self, metadata_fp="/app/crivo-metadata/cve-metadata/cve2meta.pkl.gz"):
+        logger.info("Loading CVE metadata into DataStore")
         if not pathlib.Path(metadata_fp).exists():
             logger.warning("CRIVO DataStore metadata file missing (%s)", metadata_fp)
             return
@@ -34,8 +35,11 @@ class DataStore:
             self.data = pickle.load(fd)
 
         self._is_loaded = True
+        logger.info("CVE metadata successfully loaded into DataStore")
 
     def get_data(self):
+        if not self._is_loaded:
+            logger.warning("DataStore not loaded yet")
         return self.data
 
     def parse_desc(self, description):
@@ -81,8 +85,8 @@ class DataStore:
 
         def cve_sort_key(cve):
             in_kev = cve["cve_metadata"]["in_kev"]
-            epss_score = cve["cve_metadata"]["epss_score"]
+            epss_percentile = cve["cve_metadata"]["epss_percentile"]
             cvss_score = cve["cve_metadata"]["cvss_score"]
-            return (in_kev, epss_score, cvss_score)
+            return (in_kev, epss_percentile, cvss_score)
 
         return sorted(cves_metadata, key=cve_sort_key, reverse=True)
