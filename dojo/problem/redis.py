@@ -124,19 +124,25 @@ class Problem:
             find_sla = finding.sla_days_remaining()
             sla_age, _ = finding.get_sla_period()
             severity = finding.severity
-            status = "green"
+            status = "age-green"
             status_text = f"Remediation for {severity.lower()} findings in {sla_age} days or less since {finding.get_sla_start_date().strftime('%b %d, %Y')}"
             if find_sla and find_sla < 0:
-                status = "red"
+                status = "age-red"
                 status_text = f"Overdue: Remediation for {severity.lower()} findings in {sla_age} days or less since {finding.get_sla_start_date().strftime('%b %d, %Y')}"
                 find_sla = abs(find_sla)
+        elif any(
+            Finding.objects.filter(id__in=self.finding_ids, active=True)
+        ):
+            status = "severity-Info"
+            status_text = "No SLA set, but at least one finding is active"
+            find_sla = "No SLA"
         else:
-            status = "blue"
+            status = "age-blue"
             status_text = "Any finding is active"
             find_sla = "Concluded"
         title = (
             f'<a class="has-popover" data-toggle="tooltip" data-placement="bottom" title="" href="#" data-content="{status_text}">'
-            f'<span class="label severity age-{status}">{find_sla}</span></a>'
+            f'<span class="label severity {status}">{find_sla}</span></a>'
         )
         return mark_safe(title)
 
