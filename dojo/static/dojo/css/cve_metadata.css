@@ -40,15 +40,15 @@
 }
 
 .cve_card.mild {
-    background-color: #008000
+    background-color: #4CAE4C;
 }
 
 .cve_card.moderate {
-    background-color: #F0AD4E
+    background-color: #E4AB18;
 } 
 
 .cve_card.severe {
-    background-color: #D9534F
+    background-color: #D43F3A;
 } 
 
 .main_card {
@@ -269,14 +269,14 @@
     font-weight: 800;
   }
 
-  .cpe-item .field-name {
-    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .cpe-item .field-value {
+  .cpe-item .field {
     font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
     font-size: 10px;
     font-weight: 400;
+  }
+
+  .card_dropdown h6{
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 800;
   }
