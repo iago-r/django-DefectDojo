@@ -134,7 +134,7 @@ class Problem:
             Finding.objects.filter(
                 id__in=self.finding_ids,
                 active=True,
-            )
+            ),
         ):
             status = "severity-Info"
             status_text = "No SLA set, but at least one finding is active"
