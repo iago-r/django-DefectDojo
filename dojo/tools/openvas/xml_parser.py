@@ -3,12 +3,9 @@ import logging
 from xml.dom import NamespaceErr
 
 from defusedxml import ElementTree as ET
-import csv
-
-from dojo.models import Endpoint, Finding
 
 from dojo.crivo.datastore import DataStore
-
+from dojo.models import Endpoint, Finding
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +111,6 @@ class OpenVASXMLParser:
         ]
         filtered_cves.sort(reverse=True)
         return filtered_cves[0]
-
 
     def convert_cvss_score(self, raw_value):
         val = float(raw_value)

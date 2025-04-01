@@ -31,6 +31,7 @@ def split(string: str, delimiter: str) -> list[str]:
     """
     return string.split(delimiter)
 
+
 @register.filter
 def remove_cpe_duplicates(data: list[str]) -> tuple[str, str]:
 
