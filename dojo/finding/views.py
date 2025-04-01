@@ -5,10 +5,8 @@ import copy
 import json
 import logging
 import mimetypes
-import re
 from collections import OrderedDict, defaultdict
 from itertools import chain
-from dojo.crivo.datastore import DataStore
 
 from django.conf import settings
 from django.contrib import messages
@@ -29,6 +27,7 @@ from django.views import View
 from django.views.decorators.http import require_POST
 from imagekit import ImageSpec
 from imagekit.processors import ResizeToFill
+
 import dojo.finding.helper as finding_helper
 import dojo.jira_link.helper as jira_helper
 import dojo.risk_acceptance.helper as ra_helper
@@ -38,6 +37,7 @@ from dojo.authorization.authorization_decorators import (
     user_is_authorized,
 )
 from dojo.authorization.roles_permissions import Permissions
+from dojo.crivo.datastore import DataStore
 from dojo.filters import (
     AcceptedFindingFilter,
     AcceptedFindingFilterWithoutObjectLookups,
