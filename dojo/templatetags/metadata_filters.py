@@ -30,3 +30,12 @@ def split(string: str, delimiter: str) -> list[str]:
     Example: 'cpe:2.3:a:synacor:zimbra_collaboration_suite:8.8.15:-:*:*:*:*:*:*' -> ["cpe", "2.3", "a", "synacor", "zimbra_collaboration_suite", "8.8.15", "-", "*", "*", "*", "*", "*", "*"]
     """
     return string.split(delimiter)
+
+@register.filter
+def remove_cpe_duplicates(data: list[str]) -> tuple[str, str]:
+
+    def extractVendorAndProduct(string: str) -> list[str]:
+        return string.split(":")[3], string.split(":")[4]
+
+    data = map(extractVendorAndProduct, data)
+    return tuple(set(data))

@@ -59,46 +59,24 @@
 
 
     <div id="cpe_dropdown_menu_{{ cve.cve_id }}" class="card_dropdown collapse">
-        {% for cpe in cve.cve_metadata.cpes %}
-        {% with fields=cpe|split:":" %}
+        <h6>CPEs</h6>
+        
+        {% for cpe in cve.cve_metadata.cpes|remove_cpe_duplicates %}
+        
         <div class="cpe-item">
-            <h3>CPE #{{ forloop.counter }}</h3>
             <div class="cpe-details">
-                {% with part=fields.2 %}
-                {% if part != "*" %}
-                <div class="cpe-field">
-                    <span class="field-name">Part:</span>
-                    <span class="field-value">
-                        {% if part == "a" %}Application{% elif part == "o" %}Operating System{% elif part == "h"%}Hardware{% else %}{{ part }}{% endif %}
-                    </span>
-                </div>
-                {% endif %}
-                {% endwith %}
-
-                {% with vendor=fields.3 %}
+                {% with vendor=cpe.0 product=cpe.1 %}
                 {% if vendor != "*"%}
                 <div class="cpe-field">
-                    <span class="field-name">Vendor:</span>
-                    <span class="field-value">
-                        {{ vendor|split:"_"|join:" "|title }}
-                    </span>
-                </div>
-                {% endif %}
-                {% endwith %}
-
-                {% with Product=fields.4 %}
-                {% if Product != "*"%}
-                <div class="cpe-field">
-                    <span class="field-name">Product:</span>
-                    <span class="field-value">
-                        {{ Product|split:"_"|join:" "|title }}
+                    <span class="field">
+                        {{ vendor|split:"_"|join:" "|title }} {{product|split:"_"|join:" "|title}}
                     </span>
                 </div>
                 {% endif %}
                 {% endwith %}
             </div>
         </div>
-        {% endwith %}
+  
         {% endfor %}
     </div>
 </div>

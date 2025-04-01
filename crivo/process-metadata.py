@@ -8,12 +8,14 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
+from django.conf import settings
+
 # ruff: noqa: S314
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-WORKDIR = Path("/app/crivo-metadata/cve-metadata")
+WORKDIR = Path(settings.CVE_METADATA_DIR)
 
 
 def process_epss_csv(basedir: Path, cve2meta: defaultdict[str, dict]):

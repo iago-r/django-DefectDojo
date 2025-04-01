@@ -731,11 +731,6 @@ class ViewFinding(View):
 
         return request, False
 
-    # todo: move to datastore
-    def extract_cves(self, description: str):
-        match = re.search(r"\*\*CVEs\*\*: (.+)", description)
-        return list(map(str.strip, match.group(1).split(","))) if match else []
-
     def get_finding_metadata(self, finding: Finding):
         cves_metadata = []
         context = {
