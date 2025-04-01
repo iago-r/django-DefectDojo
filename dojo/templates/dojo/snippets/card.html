@@ -1,5 +1,5 @@
 {% load metadata_filters %}
-<div class="cve_card {% if cve.cve_metadata.in_kev %}in_kev{% endif %} 
+<div class="cve_card {% if cve.cve_metadata.in_kev %}in_kev{% endif %}
         {% if cve.cve_metadata.epss_score < 0.2 %}mild
         {% elif cve.cve_metadata.epss_score < 0.4 %}moderate
         {% else %}severe
@@ -11,17 +11,17 @@
             <div class="cve_header_scores">
                 <div class="scores">
                     <span class="score_label">
-                        EPSS:
+                        EPSS
                     </span>
                     <span class="score_value">
                         {{ cve.cve_metadata.epss_score }}
                     </span>
                 </div>
                 <div class="scores">
-                    <span class="score_label"">
-                    {{cve.cve_metadata.cvss_label}}:
-                </span>
-                <span class=" score_value">
+                    <span class="score_label">
+                        {{cve.cve_metadata.cvss_label}}:
+                    </span>
+                    <span class=" score_value">
                         {{ cve.cve_metadata.cvss_score }}
                     </span>
                 </div>
@@ -30,22 +30,16 @@
 
         <div class="cve_card_body">
             <div class="left_column">
-                
-                <ul><li><h6>CVE Relevant Properties Infered With AI</h6></li>
+                <ul>
                     {% for class in cve.cve_metadata.cve_classes %}
-                    <li>{{ class }}</h6>
+                    <li>{{ class }}</li>
                     {% endfor %}
-                    <li><h6 class="cwes">CWEs</h6></li>
-                        {% for cwe in cve.cve_metadata.cwes %}
-                        <a href="{{cwe.0|cwe_url}}">
-                    <li>{{cwe.0|upper}} <i class="fa-solid fa-arrow-up-right-from-square"></i></li>
-                    </a>
+                    {% for cwe in cve.cve_metadata.cwes %}
+                    <li><a href="{{cwe.0|cwe_url}}">{{cwe.0|upper}}<i class="fa-solid fa-arrow-up-right-from-square"></i></a></li>
                     {% endfor %}
                 </ul>
-
             </div>
             <div class="right_column">
-                
             </div>
         </div>
         {% if cve.cve_metadata.cpes|length > 0  %}

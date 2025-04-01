@@ -18,9 +18,6 @@
   </div>
   <div id="test_panel" class="panel-body finding-description collapse {% if cves_metadata %}in{% endif %}">
     {% if cves_metadata %}
-      <div class="kev_card_disclaimer">
-        * {% trans "Cards with a black border have a KEV (Known Exploited Vulnerability) associated with them!" %}
-      </div>
       <div class="cve_dashboard">
           {% for cve in cves_metadata %}
             {% include "dojo/snippets/card.html" with cve=cve %}
