@@ -131,7 +131,7 @@ class Problem:
                 status_text = f"Overdue: Remediation for {severity.lower()} findings in {sla_age} days or less since {finding.get_sla_start_date().strftime('%b %d, %Y')}"
                 find_sla = abs(find_sla)
         elif any(
-            Finding.objects.filter(id__in=self.finding_ids, active=True)
+            Finding.objects.filter(id__in=self.finding_ids, active=True,)
         ):
             status = "severity-Info"
             status_text = "No SLA set, but at least one finding is active"
