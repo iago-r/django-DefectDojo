@@ -745,7 +745,7 @@ class ViewFinding(View):
 
         datastore = DataStore()
         if not datastore._is_loaded:
-            logger.debug("DataStore is not loaded")
+            logger.warning("DataStore is not loaded")
             return context
 
         cves_metadata = datastore.get_metadata(finding.description)
