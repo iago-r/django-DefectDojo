@@ -41,9 +41,22 @@ services:
       DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
       DD_DATABASE_READINESS_TIMEOUT: "${DD_DATABASE_READINESS_TIMEOUT:-30}"
       DD_UWSGI_ENDPOINT: "0.0.0.0:13031"
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
     volumes:
         - type: bind
           source: ./docker/extra_settings
           target: /app/docker/extra_settings
         - "defectdojo_crivo:/app/crivo-metadata"
         - "defectdojo_media:${DD_MEDIA_ROOT:-/app/media}"
+  crivo-init:
+    image: python:bookworm
+    user: root
+    entrypoint: ["/app/entrypoint.sh"]
+    volumes:
+      - ./crivo/init.sh:/app/entrypoint.sh
+      - ./crivo/process-metadata.py:/app/process-metadata.py
+      - ./dojo/settings/crivo_settings.py:/app/crivo_settings.py
+      - defectdojo_crivo:/app/crivo-metadata:rw
+    restart: "no"
+    environment:
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
