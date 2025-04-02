@@ -44,7 +44,7 @@ docker compose -p $PROJECT \
         -f docker-compose.yml -f docker-compose-crivo-init.yml \
         up crivo-init
 docker compose -p $PROJECT -f docker-compose.yml -f docker-compose-crivo.yml \
-        up crivo-uwsgi crivo-nginx
+        up crivouwsgi crivonginx
 ```
 
 Here, `$PROJECT` is the project name used by Docker Compose on your original deployment. This is usually the name of the directory where `docker compose` is initially run (e.g., `django-defectdojo`).  You can check the project name by running `docker ps` and check the prefix before Dojo's container names.  For example, if your containers are named `asdf-uwsgi-1`, then your `$PROJECT` is `asdf`.
