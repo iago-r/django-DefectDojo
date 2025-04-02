@@ -33,14 +33,14 @@ class OpenVASXMLParser:
                 if field.tag == "name":
                     title = field.text
                     description = [f"**Name**: {field.text}"]
-                if field.tag == "hostname":
-                    title = title + "_" + field.text
-                    description.append(f"**Hostname**: {field.text}")
-                    if field.text:
-                        unsaved_endpoint.host = field.text.strip()  # strip due to https://github.com/greenbone/gvmd/issues/2378
                 if field.tag == "host":
                     title = title + "_" + field.text
                     description.append(f"**Host**: {field.text}")
+
+                    # capture hostname correctly
+                    hostname = field.find("hostname")
+                    description.append(f"**Hostname**: {hostname.text}")
+
                     if not unsaved_endpoint.host and field.text:
                         unsaved_endpoint.host = field.text.strip()  # strip due to https://github.com/greenbone/gvmd/issues/2378
                 if field.tag == "port":
@@ -65,6 +65,11 @@ class OpenVASXMLParser:
                     if cve_list:
                         description.append(f"**CVEs**: {', '.join(cve_list)}")
 
+                    # capture solution attribute and type
+                    solution = field.find('solution').attrib['type']
+                    solution_text  = field.find('solution').text
+                    mitigation_text = str(solution) + '\n\n' + str(solution_text)
+
                 if field.tag == "severity":
                     description.append(f"**Severity**: {field.text}")
                 if field.tag == "threat":
@@ -88,6 +93,7 @@ class OpenVASXMLParser:
                 epss_score=epss_score,
                 epss_percentile=epss_percentile,
                 cve=cve,
+                mitigation=mitigation_text
             )
             finding.unsaved_endpoints = [unsaved_endpoint]
             findings.append(finding)
