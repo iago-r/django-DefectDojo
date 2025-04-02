@@ -23,7 +23,7 @@ Any new XML reports imported after our extended Dojo version is deployed *will* 
 Installation of our extensions follows the [normal installation procedure for DefectDojo](https://github.com/DefectDojo/django-DefectDojo/blob/master/readme-docs/DOCKER.md).  You should just follow the installation procedure on top of [our development branch](https://github.com/iago-r/django-DefectDojo/tree/crivo).  We frequently rebase our changes on top of Dojo's `master` branch to keep up to date with fixes and improvements on the platform, which also make it easy to check [the changes we have made to the code](https://github.com/DefectDojo/django-DefectDojo/compare/master...iago-r:django-DefectDojo:crivo).  The following will download the necessary metadata and launch our extended version of Dojo:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-crivo-init.yml \
+docker compose -f docker-compose.yml -f docker-compose-crivo.yml \
         up crivo-init
 docker compose build
 docker compose up
@@ -41,7 +41,7 @@ We have provided a `docker-compose-crivo.yml` that can be used to create and lau
 
 ```bash
 docker compose -p $PROJECT \
-        -f docker-compose.yml -f docker-compose-crivo-init.yml \
+        -f docker-compose.yml -f docker-compose-crivo.yml \
         up crivo-init
 docker compose -p $PROJECT -f docker-compose.yml -f docker-compose-crivo.yml \
         up crivouwsgi crivonginx
@@ -58,7 +58,7 @@ We inject the necessary metadata inside Dojo's running container by mounting a D
 The configuration parameters below are provided inside `crivo_settings.py`, which is imported by Dojo's (actually Django's) `settings.py` file.  The required files mentioned in the subsections below can be downloaded automatically by running the `crivo-init` container, which you can launch using:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-crivo-init.yml \
+docker compose -f docker-compose.yml -f docker-compose-crivo.yml \
     up crivo-init
 ```
 

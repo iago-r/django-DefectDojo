@@ -1,35 +1,37 @@
 #!/bin/sh
 set -eux
 
-STORAGE=/app/crivo-metadata
+METADIR=$CRIVO_STORAGE_PATH
+CVEDIR=$METADIR/cve-metadata
 
-chmod 777 $STORAGE
+mkdir -p $METADIR
+chmod 777 $METADIR
 
-curl --silent --output $STORAGE/disambiguator.json \
+curl --silent --output $METADIR/disambiguator.json \
         https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json
 
-mkdir -p $STORAGE/cve-metadata
-chmod 777 $STORAGE/cve-metadata
+mkdir -p $CVEDIR
+chmod 777 $CVEDIR
 
-curl --silent --output $STORAGE/cve-metadata/classification.pkl.gz \
+curl --silent --output $CVEDIR/classification.pkl.gz \
         https://pugna.snes.dcc.ufmg.br/defectdojo/cve-classification.pkl.gz
 
-curl --location --silent --output $STORAGE/cve-metadata/epss.csv.gz \
+curl --location --silent --output $CVEDIR/epss.csv.gz \
         https://epss.empiricalsecurity.com/epss_scores-current.csv.gz
 
-curl --location --silent --output $STORAGE/cve-metadata/kev.json \
+curl --location --silent --output $CVEDIR/kev.json \
         https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
 
-curl --location --silent --output $STORAGE/cve-metadata/cwe.xml.zip \
+curl --location --silent --output $CVEDIR/cwe.xml.zip \
         https://cwe.mitre.org/data/xml/cwec_latest.xml.zip
-unzip -u $STORAGE/cve-metadata/cwe.xml.zip -d $STORAGE/cve-metadata/cwe
+unzip -u $CVEDIR/cwe.xml.zip -d $CVEDIR/cwe
 
 for year in $(seq 2002 2025) ; do
-    curl --silent --output $STORAGE/cve-metadata/nvdcve-1.1-$year.json.gz \
+    curl --silent --output $CVEDIR/nvdcve-1.1-$year.json.gz \
             https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-$year.json.gz
 done
 
 /app/process-metadata.py
 
-ls -al $STORAGE
-ls -al $STORAGE/cve-metadata
+ls -al $METADIR
+ls -al $CVEDIR

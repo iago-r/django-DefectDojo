@@ -3,19 +3,23 @@ import csv
 import gzip
 import json
 import logging
+import os
 import pickle
+import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
-
-from django.conf import settings
 
 # ruff: noqa: S314
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-WORKDIR = Path(settings.CVE_METADATA_DIR)
+WORKDIR = os.getenv("CRIVO_STORAGE_PATH")
+if WORKDIR is None:
+    logger.fatal("CRIVO_STORAGE_PATH is not set")
+    sys.exit(1)
+WORKDIR = Path(WORKDIR) / "cve-metadata"
 
 
 def process_epss_csv(basedir: Path, cve2meta: defaultdict[str, dict]):
