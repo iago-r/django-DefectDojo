@@ -85,8 +85,8 @@ class DataStore:
 
         def cve_sort_key(cve):
             in_kev = cve["cve_metadata"]["in_kev"]
-            epss_score = cve["cve_metadata"]["epss_score"]
+            epss_percentile = cve["cve_metadata"]["epss_percentile"]
             cvss_score = cve["cve_metadata"]["cvss_score"]
-            return (in_kev, epss_score, cvss_score)
+            return (in_kev, epss_percentile, cvss_score)
 
         return sorted(cves_metadata, key=cve_sort_key, reverse=True)

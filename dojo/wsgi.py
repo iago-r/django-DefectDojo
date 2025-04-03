@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # os.environ["DJANGO_SETTINGS_MODULE"] = "dojo.settings"
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dojo.settings.settings")
 
-# This starts the data_store, a singleton class responsible for storing
+# This starts the DataStore, a singleton class responsible for storing
 # finding metadata and provide it application wide
 ds = DataStore()
 ds.load()
