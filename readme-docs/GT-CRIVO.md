@@ -40,12 +40,14 @@ Our modified version has been tested to operate in parallel with and not impacti
 We have provided a `docker-compose-crivo.yml` that can be used to create and launch these additional containers together with Dojo's own container.  If your DefectDojo instance is already running (likely from another directory), and you just want to launch our additional containers, you can run:
 
 ```bash
+docker compose build
 docker compose -p $PROJECT \
         -f docker-compose.yml -f docker-compose-crivo.yml \
         up crivo-init
 docker compose -p $PROJECT -f docker-compose.yml -f docker-compose-crivo.yml \
         up crivouwsgi crivonginx
 ```
+**Important:** Before proceeding, ensure the `docker compose build` command has been run before launching additional docker containers.
 
 Here, `$PROJECT` is the project name used by Docker Compose on your original deployment. This is usually the name of the directory where `docker compose` is initially run (e.g., `django-defectdojo`).  You can check the project name by running `docker ps` and check the prefix before Dojo's container names.  For example, if your containers are named `asdf-uwsgi-1`, then your `$PROJECT` is `asdf`.
 
