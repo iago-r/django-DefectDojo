@@ -1,9 +1,10 @@
 {% load metadata_filters %}
 <div class="card_wrapper">
 
-    <div class="cve_card {% if cve.cve_metadata.in_kev %}in_kev{% endif %} 
-        bg-vuln-{% if cve.cve_metadata.epss_score < 0.2 %}low
-        {% elif cve.cve_metadata.epss_score < 0.4 %}medium
+    <div class="cve_card {% if cve.cve_metadata.in_kev %}in_kev{% endif %}
+        bg-vuln-{% if cve.cve_metadata.epss_percentile < 0.4 %}low
+        {% elif cve.cve_metadata.epss_percentile < 0.7 %}medium
+        {% elif cve.cve_metadata.epss_percentile < 0.9 %}high
         {% else %}critical
         {% endif %}">
         <div class="cve_card_header">
@@ -25,7 +26,7 @@
                 </div>
                 <div class="score_wrapper">
                     <div class="score_label">
-                        {{cve.cve_metadata.cvss_label}} 
+                        {{cve.cve_metadata.cvss_label}}
                     </div>
                     <div class="score_value">
                         {{ cve.cve_metadata.cvss_score }}
