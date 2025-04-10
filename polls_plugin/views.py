@@ -25,6 +25,7 @@ def save_user_vote(request):
         logger.debug(f"Request body data: {data}")
 
         finding_id = int(data.get("finding_id"))
+        result_id = data.get("result_id")
         vote_value = data.get("vote")
         vote_type = data.get("vote_type")
 
@@ -38,6 +39,7 @@ def save_user_vote(request):
         vote_kwargs = {
             "user_id": request.user.id,
             "finding_id": finding_id,
+            "result_id": result_id,
             "timestamp": now(),
         }
 
