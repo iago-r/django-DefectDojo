@@ -113,9 +113,14 @@ class OpenVASXMLParser:
                 cve_dataset[cveid.lower()]["epss"]["epss_percentile"],
                 cveid,
             )
-            for cveid in cve_list
+            for cveid in cve_list if cveid.lower() in cve_dataset
         ]
         filtered_cves.sort(reverse=True)
+
+        if not filtered_cves:
+            logger.info("All CVEs are missing from metadata: %s", ",".join(cve_list))
+            return None, None, None
+
         return filtered_cves[0]
 
     def convert_cvss_score(self, raw_value):
