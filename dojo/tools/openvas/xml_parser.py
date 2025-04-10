@@ -28,6 +28,7 @@ class OpenVASXMLParser:
 
         for result in results:
             script_id = None
+            result_id = result.get("id")
             unsaved_endpoint = Endpoint()
             for field in result:
                 if field.tag == "name":
@@ -79,6 +80,8 @@ class OpenVASXMLParser:
                     description.append(f"**QOD**: {field.text}")
                 if field.tag == "description":
                     description.append(f"**Description**: {field.text}")
+                    if result_id:
+                        description.append(f"**ResultId**: {result_id}")
 
             epss_score, epss_percentile, cve = self.get_epss_data(cve_list, cve_dataset)
 
