@@ -55,14 +55,24 @@ class DataStore:
             return {}
 
         cves_metadata = []
-        all_keys = {"epss_score", "epss_percentile", "cvss_label", "cvss_score", "in_kev", "cve_classes", "cwes", "cpes"}
+
         for cve in cves:
             # check if cve is in the data and get metadata for cve
             if (metadata := self.data.get(cve.lower(), None)) is None:
                 logger.warning("No metadata found for CVE: %s", cve)
                 continue
 
-            cve_metadata = dict.fromkeys(all_keys, None)
+            cve_metadata = {
+                "epss_score": 0.0,
+                "epss_percentile": 0.0,
+                # Some CVEs are not in the NVD dumps (e.g., CVE-2004-1474):
+                "cvss_label": "CVSS Missing",
+                "cvss_score": 0.0,
+                "in_kev": False,
+                "cve_classes": [],
+                "cwes": [],
+                "cpes": [],
+            }
 
             if (epss := metadata.get("epss")) is not None:
                 cve_metadata["epss_score"] = round(epss.get("epss_score"), 2)
