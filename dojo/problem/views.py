@@ -113,25 +113,17 @@ class ListOpenProblems(ListProblems):
     filter_name = "Open"
 
     def get_problems(self, request: HttpRequest, products=None):
-        finding_ids_in_problems = [
-            fid for p in self.problems_map.values() for fid in p.finding_ids
-        ]
+        problem_fids = {
+            fid for problem in self.problems_map.values() for fid in problem.finding_ids
+        }
+        filters = {"id__in": problem_fids, "active": True}
         if products:
-            findings = Finding.objects.filter(
-                id__in=finding_ids_in_problems,
-                test__engagement__product__in=products,
-                active=True,
-            )
-        else:
-            findings = Finding.objects.filter(
-                id__in=finding_ids_in_problems,
-                active=True,
-            )
-        active_findings = set(findings.values_list("id", flat=True))
+            filters["test__engagement__product__in"] = products
+        active_fids = set(Finding.objects.filter(**filters).values_list("id", flat=True))
 
         list_problem = []
         for _, problem in self.problems_map.items():
-            if any(finding_id in active_findings for finding_id in problem.finding_ids):
+            if set(problem.finding_ids) & active_fids:
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -141,33 +133,23 @@ class ListClosedProblems(ListProblems):
     filter_name = "Closed"
 
     def get_problems(self, request: HttpRequest, products=None):
-        finding_ids_in_problems = [
-            fid for p in self.problems_map.values() for fid in p.finding_ids
-        ]
+        problem_fids = {
+            fid for problem in self.problems_map.values() for fid in problem.finding_ids
+        }
+        filters = {"id__in": problem_fids}
         if products:
-            user_findings = Finding.objects.filter(
-                id__in=finding_ids_in_problems,
-                test__engagement__product__in=products,
-                active=True,
-            )
-        else:
-            user_findings = Finding.objects.filter(
-                id__in=finding_ids_in_problems,
-                active=True,
-            )
-        allowed_finding_ids = set(user_findings.values_list("id", flat=True))
-        active_findings = set(
-            user_findings.filter(active=True).values_list("id", flat=True),
+            filters["test__engagement__product__in"] = products
+        user_findings_qs = Finding.objects.filter(**filters)
+        user_fids = set(user_findings_qs.values_list("id", flat=True))
+        active_fids = set(
+            user_findings_qs.filter(active=True).values_list("id", flat=True),
         )
-
         list_problem = []
         for _, problem in self.problems_map.items():
-            relevant_finding_ids = [
-                fid for fid in problem.finding_ids if fid in allowed_finding_ids
-            ]
-            if not relevant_finding_ids:
+            relevant_fids = set(problem.finding_ids) & user_fids
+            if not relevant_fids:
                 continue
-            if not any(fid in active_findings for fid in relevant_finding_ids):
+            if not (relevant_fids & active_fids):
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
