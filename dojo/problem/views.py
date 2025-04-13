@@ -152,6 +152,7 @@ class ListClosedProblems(ListProblems):
             if not problem.finding_ids:
                 continue
             if not (problem.finding_ids & active_fids):
+                # all findings are closed, reset to show all
                 if products:
                     problem.reconfig_problem()
                 if self.filter_problem(problem, request):
