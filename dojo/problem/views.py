@@ -66,13 +66,29 @@ class ListProblems(View):
         problems_map, _ = dict_problems_findings()
         return problems_map
 
-    def get_problems(self, request: HttpRequest, products=None):
+    def get_findings(self, products):
+        problem_fids = {
+            fid for problem in self.problems_map.values() for fid in problem.finding_ids
+        }
+        filters = {"id__in": problem_fids}
         if products:
-            findings = Finding.objects.filter(test__engagement__product__in=products)
+            filters["test__engagement__product__in"] = products
+        user_findings_qs = Finding.objects.filter(**filters)
+        user_fids = set(user_findings_qs.values_list("id", flat=True))
+        active_fids = set(
+            user_findings_qs.filter(active=True).values_list("id", flat=True),
+        )
+        return user_fids, active_fids
+
+    def get_problems(self, request: HttpRequest, products=None):
+        user_fids, _ = self.get_findings(products)
         list_problem = []
         for _, problem in self.problems_map.items():
-            if products and not any(finding_id in problem.finding_ids for finding_id in findings.values_list("id", flat=True)):
+            problem.finding_ids = set(problem.finding_ids) & user_fids
+            if not problem.finding_ids:
                 continue
+            if products:
+                problem.reconfig_problem()
             if self.filter_problem(problem, request):
                 list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -113,17 +129,13 @@ class ListOpenProblems(ListProblems):
     filter_name = "Open"
 
     def get_problems(self, request: HttpRequest, products=None):
-        problem_fids = {
-            fid for problem in self.problems_map.values() for fid in problem.finding_ids
-        }
-        filters = {"id__in": problem_fids, "active": True}
-        if products:
-            filters["test__engagement__product__in"] = products
-        active_fids = set(Finding.objects.filter(**filters).values_list("id", flat=True))
-
+        user_fids, active_fids = self.get_findings(products)
         list_problem = []
         for _, problem in self.problems_map.items():
-            if set(problem.finding_ids) & active_fids:
+            problem.finding_ids = set(problem.finding_ids) & user_fids
+            if problem.finding_ids & active_fids:
+                if products:
+                    problem.reconfig_problem()
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -133,23 +145,15 @@ class ListClosedProblems(ListProblems):
     filter_name = "Closed"
 
     def get_problems(self, request: HttpRequest, products=None):
-        problem_fids = {
-            fid for problem in self.problems_map.values() for fid in problem.finding_ids
-        }
-        filters = {"id__in": problem_fids}
-        if products:
-            filters["test__engagement__product__in"] = products
-        user_findings_qs = Finding.objects.filter(**filters)
-        user_fids = set(user_findings_qs.values_list("id", flat=True))
-        active_fids = set(
-            user_findings_qs.filter(active=True).values_list("id", flat=True),
-        )
+        user_fids, active_fids = self.get_findings(products)
         list_problem = []
         for _, problem in self.problems_map.items():
-            relevant_fids = set(problem.finding_ids) & user_fids
-            if not relevant_fids:
+            problem.finding_ids = set(problem.finding_ids) & user_fids
+            if not problem.finding_ids:
                 continue
-            if not (relevant_fids & active_fids):
+            if not (problem.finding_ids & active_fids):
+                if products:
+                    problem.reconfig_problem()
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
