@@ -1,13 +1,14 @@
 import logging
 
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import render
 from django.views import View
 
 from dojo.filters import ProblemFilter, ProblemFindingFilter
 from dojo.forms import FindingBulkUpdateForm
-from dojo.models import Finding, Global_Role
+from dojo.models import Dojo_Group, Finding, Global_Role, Product
 from dojo.problem.redis import SEVERITY_ORDER, dict_problems_findings
 from dojo.utils import add_breadcrumb
 
@@ -65,9 +66,29 @@ class ListProblems(View):
         problems_map, _ = dict_problems_findings()
         return problems_map
 
-    def get_problems(self, request: HttpRequest):
+    def get_findings(self, products):
+        problem_fids = {
+            fid for problem in self.problems_map.values() for fid in problem.finding_ids
+        }
+        filters = {"id__in": problem_fids}
+        if products:
+            filters["test__engagement__product__in"] = products
+        user_findings_qs = Finding.objects.filter(**filters)
+        user_fids = set(user_findings_qs.values_list("id", flat=True))
+        active_fids = set(
+            user_findings_qs.filter(active=True).values_list("id", flat=True),
+        )
+        return user_fids, active_fids
+
+    def get_problems(self, request: HttpRequest, products=None):
+        user_fids, _ = self.get_findings(products)
         list_problem = []
         for _, problem in self.problems_map.items():
+            problem.finding_ids = set(problem.finding_ids) & user_fids
+            if not problem.finding_ids:
+                continue
+            if products:
+                problem.reconfig_problem()
             if self.filter_problem(problem, request):
                 list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -80,9 +101,16 @@ class ListProblems(View):
 
     def get(self, request: HttpRequest):
         global_role = Global_Role.objects.filter(user=request.user).first()
+        user_groups = Dojo_Group.objects.filter(users=request.user)
+        products = Product.objects.filter(
+            Q(members=request.user) | Q(authorization_groups__in=user_groups),
+        ).distinct()
+        self.problems_map = self.get_problems_map()
         if request.user.is_superuser or (global_role and global_role.role):
-            self.problems_map = self.get_problems_map()
             problems = self.get_problems(request)
+            paginated_problems = self.paginate_queryset(problems, request)
+        elif products.exists():
+            problems = self.get_problems(request, products)
             paginated_problems = self.paginate_queryset(problems, request)
         else:
             paginated_problems = None
@@ -100,14 +128,14 @@ class ListProblems(View):
 class ListOpenProblems(ListProblems):
     filter_name = "Open"
 
-    def get_problems(self, request: HttpRequest):
+    def get_problems(self, request: HttpRequest, products=None):
+        user_fids, active_fids = self.get_findings(products)
         list_problem = []
-        active_findings = set(
-            Finding.objects.filter(id__in=[fid for p in self.problems_map.values() for fid in p.finding_ids], active=True)
-            .values_list("id", flat=True),
-        )
         for _, problem in self.problems_map.items():
-            if any(finding_id in active_findings for finding_id in problem.finding_ids):
+            problem.finding_ids = set(problem.finding_ids) & user_fids
+            if problem.finding_ids & active_fids:
+                if products:
+                    problem.reconfig_problem()
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -116,14 +144,17 @@ class ListOpenProblems(ListProblems):
 class ListClosedProblems(ListProblems):
     filter_name = "Closed"
 
-    def get_problems(self, request: HttpRequest):
+    def get_problems(self, request: HttpRequest, products=None):
+        user_fids, active_fids = self.get_findings(products)
         list_problem = []
-        active_findings = set(
-            Finding.objects.filter(id__in=[fid for p in self.problems_map.values() for fid in p.finding_ids], active=True)
-            .values_list("id", flat=True),
-        )
         for _, problem in self.problems_map.items():
-            if not any(finding_id in active_findings for finding_id in problem.finding_ids):
+            problem.finding_ids = set(problem.finding_ids) & user_fids
+            if not problem.finding_ids:
+                continue
+            if not (problem.finding_ids & active_fids):
+                # all findings are closed, reset to show all
+                if products:
+                    problem.reconfig_problem()
                 if self.filter_problem(problem, request):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -161,7 +192,7 @@ class ProblemFindings(ListProblems):
             findings = findings.filter(test__engagement__product__id__in=product_filter)
         return findings
 
-    def get_findings(self, request: HttpRequest):
+    def get_findings(self, request: HttpRequest, products=None):
         problem = self.problems_map.get(self.problem_id)
 
         # When the problem not exists, or the findings was changed for severity=Info
@@ -169,16 +200,26 @@ class ProblemFindings(ListProblems):
             return None, []
 
         list_findings = problem.finding_ids
-        findings = Finding.objects.filter(id__in=list_findings)
+        if products:
+            findings = Finding.objects.filter(id__in=list_findings, test__engagement__product__in=products)
+        else:
+            findings = Finding.objects.filter(id__in=list_findings)
         findings = self.filter_findings(findings, request)
         return problem.name, self.order_field(request, findings)
 
     def get(self, request: HttpRequest, problem_id: int):
         self.problem_id = problem_id
         global_role = Global_Role.objects.filter(user=request.user).first()
+        user_groups = Dojo_Group.objects.filter(users=request.user)
+        products = Product.objects.filter(
+            Q(members=request.user) | Q(authorization_groups__in=user_groups),
+        ).distinct()
+        self.problems_map = self.get_problems_map()
         if request.user.is_superuser or (global_role and global_role.role):
-            self.problems_map = self.get_problems_map()
             problem_name, findings = self.get_findings(request)
+            paginated_findings = self.paginate_queryset(findings, request)
+        elif products.exists():
+            problem_name, findings = self.get_findings(request, products)
             paginated_findings = self.paginate_queryset(findings, request)
         else:
             problem_name, paginated_findings = None, None

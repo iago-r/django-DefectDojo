@@ -76,6 +76,13 @@ class Problem:
             if not self.sla_finding_id or finding.sla_days_remaining() < Finding.objects.get(id=self.sla_finding_id).sla_days_remaining():
                 self.sla_finding_id = finding.id
 
+    def reconfig_problem(self):
+        self.severity = "Info"
+        self.sla_finding_id = None
+        findings = Finding.objects.filter(id__in=self.finding_ids)
+        for finding in findings:
+            self.update_name_sev_sla(finding)
+
     @staticmethod
     def add_finding(finding):
         Problem.remove_finding(int(finding.id))
@@ -104,11 +111,7 @@ class Problem:
                     # We need to iterate over Findings anyway whenever a Finding is deleted or changed to update the Problem definition.
                     problem.finding_ids.remove(finding_id)
                     if finding_id == problem.main_finding_id:
-                        problem.severity = "Info"
-                        problem.sla_finding_id = None
-                        findings = Finding.objects.filter(id__in=problem.finding_ids)
-                        for finding in findings:
-                            problem.update_name_sev_sla(finding)
+                        problem.reconfig_problem()
 
                     # renew quantity of script_ids if necessary
                     remaining_script_ids = {finding.vuln_id_from_tool for finding in Finding.objects.filter(id__in=problem.finding_ids)}
