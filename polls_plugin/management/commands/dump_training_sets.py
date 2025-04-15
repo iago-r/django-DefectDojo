@@ -1,6 +1,7 @@
 import json
 import logging
 import pickle
+import re
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
@@ -10,6 +11,15 @@ from dojo.models import Finding
 from polls_plugin.models import Vote
 
 logger = logging.getLogger(__name__)
+
+
+def extract_result_id_from_description(description):
+    if not description:
+        return None
+
+    pattern = r"\*\*?ResultId\*\*?: ([a-f0-9\-]+)"
+    match = re.search(pattern, description)
+    return match.group(1) if match else None
 
 
 class Command(BaseCommand):
@@ -42,6 +52,7 @@ class Command(BaseCommand):
                     votes_data.append(
                         {
                             "id": detailed_vote.finding_id,
+                            "result_id": getattr(detailed_vote, "result_id", None),
                             "user_id": detailed_vote.user_id,
                             "vote_class": detailed_vote.vote_class,
                             "timestamp": detailed_vote.timestamp.isoformat(),

@@ -623,7 +623,9 @@
                                             {{ finding.epss_percentile|format_epss }}
                                         </td>
                                         <td>
-                                            <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
+                                            <select class="vote-dropdown" 
+                                                    data-finding-id="{{ finding.id }}"
+                                                    data-result-id="{% with finding.description|extract_result_id as result_id %}{% if result_id %}{{ result_id }}{% else %}none{% endif %}{% endwith %}">
                                                 <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
                                                 <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
                                                 <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
@@ -1175,6 +1177,7 @@
             if (event.target.classList.contains("vote-dropdown")) {
                 const dropdown = event.target;
                 const findingId = dropdown.dataset.findingId;
+                const resultId = dropdown.dataset.resultId || "none";
                 const vote = dropdown.value;
 
                 const VOTE_CHOICES_CLASS = ["NA", "Mild", "Moderate", "Severe", "Critical"];
@@ -1197,7 +1200,12 @@
                             "Content-Type": "application/json",
                             "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
                         },
-                        body: JSON.stringify({ finding_id: findingId, vote: vote, vote_type: vote_type }),
+                        body: JSON.stringify({ 
+                            finding_id: findingId, 
+                            result_id: resultId,
+                            vote: vote, 
+                            vote_type: vote_type 
+                        }),
                     })
                         .then((response) => {
                             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
