@@ -797,6 +797,9 @@ class ViewFinding(View):
         context |= self.get_test_import_data(request, finding)
         context |= self.get_jira_data(finding)
         context |= self.get_finding_metadata(finding)
+        # get the user votes
+        votes = get_user_votes(request.user.id)
+        context["user_votes"] = votes
         # Render the form
         return render(request, self.get_template(), context)
 

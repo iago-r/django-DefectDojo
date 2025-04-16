@@ -16,7 +16,7 @@ git checkout -b crivo remotes/crivo/crivo
 docker compose build
 # Run the crivo-init container to download CVE metadata, you
 # only need to do this once:
-docker compose -f docker-compose.yml -f docker-compose-crivo.yml up crivo-init
+docker compose -f docker-compose.yml -f docker-compose-crivo.yml run --rm crivo-init
 # Launch the containers, pass the `-d` parameter if you want to detach
 # container output from the terminal:
 docker compose up
@@ -86,7 +86,7 @@ git checkout crivo
 docker compose -p $PROJECT build
 docker compose -p $PROJECT \
         -f docker-compose.yml -f docker-compose-crivo.yml \
-        up crivo-init
+        run --rm crivo-init
 docker compose -p $PROJECT -f docker-compose.yml -f docker-compose-crivo.yml \
         up crivouwsgi crivonginx
 ```
