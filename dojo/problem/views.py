@@ -11,6 +11,7 @@ from dojo.forms import FindingBulkUpdateForm
 from dojo.models import Dojo_Group, Finding, Global_Role, Product
 from dojo.problem.redis import SEVERITY_ORDER, dict_problems_findings
 from dojo.utils import add_breadcrumb
+from polls_plugin.utils import get_user_votes
 
 logger = logging.getLogger(__name__)
 
@@ -223,12 +224,14 @@ class ProblemFindings(ListProblems):
             paginated_findings = self.paginate_queryset(findings, request)
         else:
             problem_name, paginated_findings = None, None
+        votes = get_user_votes(request.user.id)
 
         context = {
             "problem": problem_name,
             "filtered": ProblemFindingFilter(request.GET),
             "problem_id": self.problem_id,
             "findings": paginated_findings,
+            "user_votes": votes,
             "bulk_edit_form": FindingBulkUpdateForm(request.GET),
         }
 

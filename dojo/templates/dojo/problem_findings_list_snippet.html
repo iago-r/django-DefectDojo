@@ -4,6 +4,7 @@
 {% load get_endpoint_status %}
 {% load static %}
 {% load i18n %}
+{% load polls_filters %}
 {% block problem_findings %}
     <div class="row">
         <div class="col-md-12">
@@ -291,6 +292,7 @@
                                     <th class="nowrap centered severity-sort">
                                         {% trans "Severity" %}
                                     </th>
+                                    <th>{% trans "Votes" %}</th>
                                     <th>{% trans "SLA" %}</th>
                                     <th>{% trans "Script ID" %}</th>
                                     <th>{% trans "Reporter" %}</th>
@@ -446,6 +448,15 @@
                                                 {{ finding.severity }}
                                             </span>
                                         </td>
+                                        <td>
+                                            <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
+                                                <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
+                                                <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
+                                                <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
+                                                <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
+                                                <option value="Critical" {% if user_votes|get_item:finding.id == "Critical" %}selected{% endif %}>Critical</option>
+                                            </select>
+                                        </td>
                                         <td class="centered">
                                             {{ finding|finding_sla }}
                                         </td>
@@ -505,6 +516,7 @@
                     return type === 'export' ? getDojoExportValueFromTag(data, 'a') : data;
                 }},
                 { "data": "severity" },
+                { "data": "vote" },
                 { "data": "sla", "type": "num", render: function (data, type, row, meta) {
                     if(type === 'sort') {
                         var api = new $.fn.dataTable.Api(meta.settings);
@@ -606,7 +618,7 @@
                     {
                         extend: 'copy',
                         exportOptions: {
-                            columns: [2, 3, 4, 5, 6, 7, 8],
+                            columns: [2, 3, 5, 6, 7, 8, 9],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -620,7 +632,7 @@
                         orientation: 'landscape',
                         pageSize: 'LETTER',
                         exportOptions: {
-                            columns: [2, 3, 4, 5, 6, 7, 8],
+                            columns: [2, 3, 5, 6, 7, 8, 9],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -632,7 +644,7 @@
                     {
                         extend: 'print',
                         exportOptions: {
-                            columns: [2, 3, 4, 5, 6, 7, 8],
+                            columns: [2, 3, 5, 6, 7, 8, 9],
                             stripHtml: true,
                             stripNewlines: true,
                             trim: true,
@@ -889,6 +901,7 @@
         });
 
     </script>
+    <script src="{% static 'dojo/js/crivo.js' %}"></script>
     {% include "dojo/filter_js_snippet.html" %}
     {% include "dojo/snippets/selectpicker_in_dropdown.html" %}
 {% endblock %}
