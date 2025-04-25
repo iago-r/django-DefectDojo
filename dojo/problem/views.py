@@ -51,15 +51,24 @@ class ListProblems(View):
     def filter_problem(self, problem, request: HttpRequest):
         name_filter, min_severity_filter, script_id_filter, engagement_filter, product_filter = self.filters(request)
         add_problem = True
+        if product_filter:
+            problem.finding_ids = set(problem.finding_ids) & set(
+                Finding.objects.filter(test__engagement__product__id__in=product_filter).values_list("id", flat=True),
+            )
+        if engagement_filter:
+            problem.finding_ids = set(problem.finding_ids) & set(
+                Finding.objects.filter(test__engagement__id__in=engagement_filter).values_list("id", flat=True),
+            )
+        if script_id_filter and not any(script_id_filter in script_id for script_id in problem.script_ids):
+            problem.finding_ids = set(problem.finding_ids) & set(
+                Finding.objects.filter(vuln_id_from_tool__icontains=script_id_filter).values_list("id", flat=True),
+            )
+        problem.reconfig_problem()
         if name_filter and name_filter not in problem.name.lower():
             add_problem = False
         if min_severity_filter and SEVERITY_ORDER.get(problem.severity) < SEVERITY_ORDER[min_severity_filter]:
             add_problem = False
-        if script_id_filter and not any(script_id_filter in script_id for script_id in problem.script_ids):
-            add_problem = False
-        if engagement_filter and not Finding.objects.filter(id__in=problem.finding_ids, test__engagement__id__in=engagement_filter).exists():
-            add_problem = False
-        if product_filter and not Finding.objects.filter(id__in=problem.finding_ids, test__engagement__product__id__in=product_filter).exists():
+        if not problem.finding_ids:
             add_problem = False
         return add_problem
 
@@ -86,10 +95,6 @@ class ListProblems(View):
         list_problem = []
         for _, problem in self.problems_map.items():
             problem.finding_ids = set(problem.finding_ids) & user_fids
-            if not problem.finding_ids:
-                continue
-            if products:
-                problem.reconfig_problem()
             if self.filter_problem(problem, request):
                 list_problem.append(problem)
         return self.order_field(request, list_problem)
@@ -134,10 +139,8 @@ class ListOpenProblems(ListProblems):
         list_problem = []
         for _, problem in self.problems_map.items():
             problem.finding_ids = set(problem.finding_ids) & user_fids
-            if problem.finding_ids & active_fids:
-                if products:
-                    problem.reconfig_problem()
-                if self.filter_problem(problem, request):
+            if self.filter_problem(problem, request):
+                if problem.finding_ids & active_fids:
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
 
@@ -150,13 +153,8 @@ class ListClosedProblems(ListProblems):
         list_problem = []
         for _, problem in self.problems_map.items():
             problem.finding_ids = set(problem.finding_ids) & user_fids
-            if not problem.finding_ids:
-                continue
-            if not (problem.finding_ids & active_fids):
-                # all findings are closed, reset to show all
-                if products:
-                    problem.reconfig_problem()
-                if self.filter_problem(problem, request):
+            if self.filter_problem(problem, request):
+                if not (problem.finding_ids & active_fids):
                     list_problem.append(problem)
         return self.order_field(request, list_problem)
 
