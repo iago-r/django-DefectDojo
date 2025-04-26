@@ -1153,7 +1153,7 @@ class ProblemFindingFilter(FilterSet):
     reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none(), label="Reporter")
     status = ChoiceFilter(choices=[("Yes", "Yes"), ("No", "No")], method="filter_status", label="Active")
     engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.none(), label="Engagement")
-    product = ModelMultipleChoiceFilter(queryset=Product_Type.objects.none(), label="Product")
+    product = ModelMultipleChoiceFilter(queryset=Product.objects.none(), label="Product")
 
     def filter_name(self, queryset, name, value):
         return queryset
