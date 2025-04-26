@@ -791,7 +791,7 @@
                             var api = new $.fn.dataTable.Api(meta.settings);
                             var td = api.cell({row: meta.row, column: meta.col}).node();
                             var selected = $(td).find('select option:selected').val();
-                            return order[selected] !== undefined ? order[selected] : 999; // Se não achar, põe no final
+                            return order[selected] !== undefined ? order[selected] : 999;
                         }
                         return data;
                     }},
