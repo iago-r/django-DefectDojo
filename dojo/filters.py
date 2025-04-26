@@ -1103,43 +1103,57 @@ class EngagementFilter(EngagementFilterHelper, DojoFilter):
 
 class ProblemFilter(FilterSet):
     name = CharFilter(method="filter_name", label="Name")
-    severity = ChoiceFilter(choices=[
-    ("Low", "Low"),
-    ("Medium", "Medium"),
-    ("High", "High"),
-    ("Critical", "Critical"),
-    ], method="filter_min_severity", label="Min Severity")
+    severity = ChoiceFilter(
+        choices=[
+            ("Low", "Low"),
+            ("Medium", "Medium"),
+            ("High", "High"),
+            ("Critical", "Critical"),
+        ],
+        method="filter_min_severity",
+        label="Min Severity",
+    )
     script_id = CharFilter(method="filter_script_id", label="Script ID")
-    engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.all(), label="Engagement")
-    product = ModelMultipleChoiceFilter(queryset=Product.objects.all(), label="Product")
-
-    def filter_name(self, queryset, name, value):
-        return queryset
-
-    def filter_min_severity(self, queryset, name, value):
-        return queryset
-
-    def filter_script_id(self, queryset, name, value):
-        return queryset
+    engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.none(), label="Engagement")
+    product = ModelMultipleChoiceFilter(queryset=Product.objects.none(), label="Product")
 
     class Meta:
         model = Finding
         fields = ["name", "severity", "script_id", "engagement", "product"]
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        self.pid = kwargs.pop("pid", None)
+        super().__init__(*args, **kwargs)
+        self.set_related_object_fields()
+
+    def set_related_object_fields(self):
+        if self.pid is not None:
+            self.form.fields["engagement"].queryset = Engagement.objects.filter(product_id=self.pid)
+            if "product" in self.form.fields:
+                del self.form.fields["product"]
+        else:
+            self.form.fields["product"].queryset = get_authorized_products(Permissions.Product_View)
+            self.form.fields["engagement"].queryset = get_authorized_engagements(Permissions.Engagement_View)
+
 
 class ProblemFindingFilter(FilterSet):
     name = CharFilter(method="filter_name", label="Name")
-    severity = MultipleChoiceFilter(choices=[
-    ("Low", "Low"),
-    ("Medium", "Medium"),
-    ("High", "High"),
-    ("Critical", "Critical"),
-    ], method="filter_severity", label="Severity")
+    severity = MultipleChoiceFilter(
+        choices=[
+            ("Low", "Low"),
+            ("Medium", "Medium"),
+            ("High", "High"),
+            ("Critical", "Critical"),
+        ],
+        method="filter_severity",
+        label="Severity",
+    )
     script_id = CharFilter(method="filter_script_id", label="Script ID")
-    reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.all(), label="Reporter")
+    reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none(), label="Reporter")
     status = ChoiceFilter(choices=[("Yes", "Yes"), ("No", "No")], method="filter_status", label="Active")
-    engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.all(), label="Engagement")
-    product = ModelMultipleChoiceFilter(queryset=Product.objects.all(), label="Product")
+    engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.none(), label="Engagement")
+    product = ModelMultipleChoiceFilter(queryset=Product_Type.objects.none(), label="Product")
 
     def filter_name(self, queryset, name, value):
         return queryset
@@ -1156,6 +1170,22 @@ class ProblemFindingFilter(FilterSet):
     class Meta:
         model = Finding
         fields = ["name", "severity", "script_id", "reporter", "status", "engagement", "product"]
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        self.pid = kwargs.pop("pid", None)
+        super().__init__(*args, **kwargs)
+        self.set_related_object_fields()
+
+    def set_related_object_fields(self):
+        if self.pid is not None:
+            self.form.fields["engagement"].queryset = Engagement.objects.filter(product_id=self.pid)
+            if "product" in self.form.fields:
+                del self.form.fields["product"]
+        else:
+            self.form.fields["product"].queryset = get_authorized_products(Permissions.Product_View)
+            self.form.fields["engagement"].queryset = get_authorized_engagements(Permissions.Engagement_View)
+        self.form.fields["reporter"].queryset = get_authorized_users(Permissions.Finding_View)
 
 
 class ProductEngagementsFilter(DojoFilter):
