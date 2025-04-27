@@ -43,7 +43,7 @@ class Command(BaseCommand):
                         {
                             "id": detailed_vote.finding_id,
                             "user_id": detailed_vote.user_id,
-                            "vote_class": detailed_vote.vote_class,
+                            "vote_num": detailed_vote.vote_num,
                             "timestamp": detailed_vote.timestamp.isoformat(),
                         },
                     )

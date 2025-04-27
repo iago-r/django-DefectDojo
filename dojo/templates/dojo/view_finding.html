@@ -312,11 +312,18 @@
                         </td>
                         <td>
                             <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
-                                <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
-                                <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
-                                <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
-                                <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
-                                <option value="Critical" {% if user_votes|get_item:finding.id == "Critical" %}selected{% endif %}>Critical</option>
+                                <option value="NV" {% if user_votes|get_item:finding.id == "NV" %}selected{% endif %}></option>
+                                <option value="0" {% if user_votes|get_item:finding.id == "0" %}selected{% endif %}>0</option>
+                                <option value="1" {% if user_votes|get_item:finding.id == "1" %}selected{% endif %}>1</option>
+                                <option value="2" {% if user_votes|get_item:finding.id == "2" %}selected{% endif %}>2</option>
+                                <option value="3" {% if user_votes|get_item:finding.id == "3" %}selected{% endif %}>3</option>
+                                <option value="4" {% if user_votes|get_item:finding.id == "4" %}selected{% endif %}>4</option>
+                                <option value="5" {% if user_votes|get_item:finding.id == "5" %}selected{% endif %}>5</option>
+                                <option value="6" {% if user_votes|get_item:finding.id == "6" %}selected{% endif %}>6</option>
+                                <option value="7" {% if user_votes|get_item:finding.id == "7" %}selected{% endif %}>7</option>
+                                <option value="8" {% if user_votes|get_item:finding.id == "8" %}selected{% endif %}>8</option>
+                                <option value="9" {% if user_votes|get_item:finding.id == "9" %}selected{% endif %}>9</option>
+                                <option value="10" {% if user_votes|get_item:finding.id == "10" %}selected{% endif %}>10</option>
                             </select>
                         </td>
                         {% if system_settings.enable_finding_sla %}
