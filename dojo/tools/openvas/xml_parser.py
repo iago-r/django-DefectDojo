@@ -19,6 +19,8 @@ class OpenVASXMLParser:
             msg = "This doesn't seem to be a valid Greenbone OpenVAS XML file."
             raise NamespaceErr(msg)
         report = root.find("report")
+        hosts = report.findall("host")
+        hosts_os = self.get_host_os(hosts)
         results = report.find("results")
 
         cve_dataset = {}
@@ -40,6 +42,9 @@ class OpenVASXMLParser:
                     # capture hostname correctly
                     hostname = field.find("hostname")
                     description.append(f"**Hostname**: {hostname.text}")
+
+                    if field.text in hosts_os:
+                        description.append(f"**OS**: {hosts_os[field.text]}")
 
                     if not unsaved_endpoint.host and field.text:
                         unsaved_endpoint.host = field.text.strip()  # strip due to https://github.com/greenbone/gvmd/issues/2378
@@ -134,3 +139,25 @@ class OpenVASXMLParser:
         if val < 9.0:
             return "High"
         return "Critical"
+
+    def get_host_os(self, hosts):
+        host_os = {}
+        for host in hosts:
+            ip = host.find("ip")
+            if ip is None:
+                continue
+            ip = ip.text
+            details = host.findall("detail")
+            for detail in details:
+                tag_name = detail.find("name")
+                if tag_name is None:
+                    continue
+                if tag_name.text == "best_os_cpe":
+                    tag_value = detail.find("value")
+                    if tag_value is None:
+                        continue
+                    os = tag_value.text
+                    if os is not None:
+                        host_os[ip] = os
+                        break
+        return host_os
