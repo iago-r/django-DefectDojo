@@ -751,7 +751,10 @@ class ViewFinding(View):
         }
 
     def get_initial_context(self, request: HttpRequest, finding: Finding, user: Dojo_User):
-        notes = finding.notes.all()
+        if user.is_superuser or user.is_staff:
+            notes = finding.notes.all()
+        else:
+            notes = finding.notes.filter(author=user)
         note_type_activation = Note_Type.objects.filter(is_active=True).count()
         available_note_types = None
         if note_type_activation:
