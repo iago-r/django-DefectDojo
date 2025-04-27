@@ -38,12 +38,13 @@ class OpenVASXMLParser:
                 if field.tag == "host":
                     title = title + "_" + field.text
                     description.append(f"**Host**: {field.text}")
-                    if field.text in hosts_os:
-                        description.append(f"**OS**: {hosts_os[field.text]}")
 
                     # capture hostname correctly
                     hostname = field.find("hostname")
                     description.append(f"**Hostname**: {hostname.text}")
+
+                    if field.text in hosts_os:
+                        description.append(f"**OS**: {hosts_os[field.text]}")
 
                     if not unsaved_endpoint.host and field.text:
                         unsaved_endpoint.host = field.text.strip()  # strip due to https://github.com/greenbone/gvmd/issues/2378
