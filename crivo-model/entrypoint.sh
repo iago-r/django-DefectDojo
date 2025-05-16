@@ -1,6 +1,12 @@
 #!/bin/sh
 set -eu
 
+# create directories in CRIVO_STORAGE_PATH if not exist
+mkdir -p "$CRIVO_STORAGE_PATH/user_votes"
+chmod 777 "$CRIVO_STORAGE_PATH/user_votes"
+mkdir -p "$CRIVO_STORAGE_PATH/user_models"
+chmod 777 "$CRIVO_STORAGE_PATH/user_models"
+
 echo "Waiting changes in $CRIVO_STORAGE_PATH..."
 while true; do
   EVENT=$(inotifywait -e modify,create -r --format '%w%f' "$CRIVO_STORAGE_PATH/user_votes")
