@@ -80,6 +80,7 @@ def update_risks(request):
             finding_id=vote["finding_id"],
             user_id=vote["user_id"],
             timestamp=vote["latest_timestamp"],
+            is_model_inference=False,
         ).first()
         logger.info(f"Detailed vote: {detailed_vote}")
 

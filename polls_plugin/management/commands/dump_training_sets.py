@@ -27,7 +27,7 @@ class Command(BaseCommand):
 
     def extract_votes(self):
         """Extract the latest vote for each vulnerability (finding)."""
-        latest_votes = Vote.objects.values("finding_id", "user_id").annotate(latest_timestamp=Max("timestamp"))
+        latest_votes = Vote.objects.filter(is_model_inference=False).values("finding_id", "user_id").annotate(latest_timestamp=Max("timestamp"))
 
         if latest_votes:
             votes_data = []
@@ -36,6 +36,7 @@ class Command(BaseCommand):
                     finding_id=vote["finding_id"],
                     user_id=vote["user_id"],
                     timestamp=vote["latest_timestamp"],
+                    is_model_inference=False,
                 ).first()
 
                 if detailed_vote:
