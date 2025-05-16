@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('polls_plugin', '0001_initial'),
+        ("polls_plugin", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vote',
-            name='is_model_inference',
+            model_name="vote",
+            name="is_model_inference",
             field=models.BooleanField(default=False),
         ),
         migrations.AlterField(
-            model_name='vote',
-            name='user_id',
+            model_name="vote",
+            name="user_id",
             field=models.IntegerField(blank=True, null=True),
         ),
     ]
