@@ -26,10 +26,11 @@ class Vote(models.Model):
     ]
 
     finding_id = models.IntegerField()
-    user_id = models.IntegerField()
+    user_id = models.IntegerField(null=True, blank=True)
     vote_class = models.CharField(max_length=10, choices=VOTE_CHOICES_CLASS)
     vote_num = models.CharField(max_length=10, choices=VOTE_CHOICES_NUM)
     timestamp = models.DateTimeField(auto_now_add=True)
+    is_model_inference = models.BooleanField(default=False)
 
     class Meta:
         db_table = "votes"

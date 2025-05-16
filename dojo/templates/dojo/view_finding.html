@@ -310,15 +310,18 @@
                                 {% endif %}
                             </span>
                         </td>
-                        <td>
-                            <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
-                                <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
-                                <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
-                                <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
-                                <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
-                                <option value="Critical" {% if user_votes|get_item:finding.id == "Critical" %}selected{% endif %}>Critical</option>
-                            </select>
-                        </td>
+                        {% get_vote user_votes model_votes finding.id as vote_tuple %}
+                        {% with vote_value=vote_tuple.0 from_model=vote_tuple.1 %}
+                            <td>
+                                <select class="vote-dropdown {% if from_model %}model-vote{% endif %}" data-finding-id="{{ finding.id }}">
+                                    <option value="NA" {% if vote_value == "NA" %}selected{% endif %}></option>
+                                    <option value="Mild" {% if vote_value == "Mild" %}selected{% endif %}>Mild</option>
+                                    <option value="Moderate" {% if vote_value == "Moderate" %}selected{% endif %}>Moderate</option>
+                                    <option value="Severe" {% if vote_value == "Severe" %}selected{% endif %}>Severe</option>
+                                    <option value="Critical" {% if vote_value == "Critical" %}selected{% endif %}>Critical</option>
+                                </select>
+                            </td>
+                        {% endwith %}
                         {% if system_settings.enable_finding_sla %}
                         <td>
                         {{ finding|finding_sla }}

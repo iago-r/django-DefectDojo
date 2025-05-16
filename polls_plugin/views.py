@@ -1,18 +1,25 @@
+import os
 import json
 import logging
 
+from django.db.models import Max
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils.timezone import now
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
+
+from dojo.models import Finding
 
 from .models import Vote
 
 logger = logging.getLogger(__name__)
 
+WORKDIR = os.getenv("CRIVO_STORAGE_PATH")
+VOTES_WORKDIR = os.path.join(WORKDIR, "user_votes")
+if not os.path.exists(VOTES_WORKDIR):
+    os.makedirs(VOTES_WORKDIR)
 
 @login_required
-@csrf_exempt
 def save_user_vote(request):
     logger.debug("Received a request.")
 
@@ -56,3 +63,52 @@ def save_user_vote(request):
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         return JsonResponse({"error": "An unexpected error occurred"}, status=500)
+
+@require_GET
+@login_required
+def update_risks(request):
+    finding_info = {}
+    latest_votes = Vote.objects.filter(is_model_inference=False, user_id=request.user.id).values("finding_id", "user_id").annotate(
+        latest_timestamp=Max("timestamp")
+    )
+    for vote in latest_votes:
+        detailed_vote = Vote.objects.filter(
+            finding_id=vote["finding_id"],
+            user_id=vote["user_id"],
+            timestamp=vote["latest_timestamp"],
+        ).first()
+        logger.info(f"Detailed vote: {detailed_vote}")
+
+        if detailed_vote and detailed_vote.vote_class:
+            finding_info[detailed_vote.finding_id] = {
+                "vote": detailed_vote.vote_class
+            }
+    for finding_id in finding_info:
+        finding = Finding.objects.filter(id=finding_id).first()
+        if finding:
+            finding_info[finding_id]["features"] = {
+                "title": finding.title,
+                "date": finding.date.isoformat() if finding.date else None,
+                "description": finding.description,
+                "severity": finding.severity,
+                "vuln_id_from_tool": finding.vuln_id_from_tool,
+                "mitigation": finding.mitigation,
+                "epss_score": finding.epss_score,
+                "epss_percentile": finding.epss_percentile,
+                "cve": finding.cve,
+            }
+        else:
+            finding_info.pop(finding_id, None)
+    if not finding_info:
+        logger.info("No votes found. Not updating model.")
+        return JsonResponse({"message": "No votes found. Not updating model."})
+    user_votes_info = {
+        "user_id": request.user.id,
+        "user_findings": finding_info,
+    }
+    
+
+    with open(os.path.join(VOTES_WORKDIR, f"{request.user.id}_votes_info.json"), "w") as f:
+        json.dump(user_votes_info, f)
+
+    return JsonResponse({"message": "Risks updated successfully"})

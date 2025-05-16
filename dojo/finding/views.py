@@ -125,7 +125,7 @@ from dojo.utils import (
     reopen_external_issue,
     update_external_issue,
 )
-from polls_plugin.utils import get_user_votes
+from polls_plugin.utils import get_model_inference_votes, get_user_votes
 
 JFORM_PUSH_TO_JIRA_MESSAGE = "jform.push_to_jira: %s"
 
@@ -440,12 +440,14 @@ class ListFindings(View, BaseListFindings):
             self.get_prefetch_type())
         # Add some breadcrumbs
         request, context = self.add_breadcrumbs(request, context)
-        votes = get_user_votes(request.user.id)
+        user_votes = get_user_votes(request.user.id)
+        model_votes = get_model_inference_votes(request.user.id)
         # Add the filtered and paged findings into the context
         context |= {
             "findings": paged_findings,
             "filtered": filtered_findings,
-            "user_votes": votes,
+            "user_votes": user_votes,
+            "model_votes": model_votes,
         }
         # Render the view
         return render(request, self.get_template(), context)
@@ -798,8 +800,10 @@ class ViewFinding(View):
         context |= self.get_jira_data(finding)
         context |= self.get_finding_metadata(finding)
         # get the user votes
-        votes = get_user_votes(request.user.id)
-        context["user_votes"] = votes
+        user_votes = get_user_votes(request.user.id)
+        model_votes = get_model_inference_votes(request.user.id)
+        context["user_votes"] = user_votes
+        model_votes["model_votes"] = model_votes
         # Render the form
         return render(request, self.get_template(), context)
 

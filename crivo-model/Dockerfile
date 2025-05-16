@@ -1,0 +1,9 @@
+FROM python:3.13-bookworm
+
+RUN apt-get update && apt-get install -y inotify-tools
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+COPY . /usr/src/app
+
+RUN pip3 install --no-cache-dir -r requirements.txt
