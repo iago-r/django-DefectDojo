@@ -743,7 +743,7 @@ class ViewFinding(View):
             logger.warning("DataStore is not loaded")
             return context
 
-        cves_metadata = datastore.get_metadata(finding.description)
+        cves_metadata = datastore.get_metadata(finding.description, settings.CVE_CLASSIFICATION_THRESHOLD)
 
         return {
             "cves_metadata": cves_metadata,

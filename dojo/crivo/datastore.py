@@ -1,11 +1,11 @@
 import gzip
 import logging
+import os
 import pathlib
 import pickle
 import re
 import threading
 
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,6 @@ class DataStore:
     _lock = threading.Lock()
     _is_loaded = False
     FINDING_DESCRIPTION_GET_CVES = re.compile(r"\*\*CVEs\*\*: (.+)")
-    CVE_CLASSIFICATION_THRESHOLD = settings.CVE_CLASSIFICATION_THRESHOLD
 
     def __new__(cls):
         if cls._instance is None:
@@ -42,14 +41,14 @@ class DataStore:
             logger.warning("DataStore not loaded yet")
         return self.data
 
-    def parse_desc(self, description):
+    def parse_desc(self, description) -> list[str]:
         match = self.FINDING_DESCRIPTION_GET_CVES.search(description)
         if not match:
-            logger.warning("No CVEs found in description")
+            logger.debug("No CVEs found in description")
             return []
         return [cve.strip() for cve in match.group(1).split(",")]
 
-    def get_metadata(self, description):
+    def get_metadata(self, description, classification_threshold=0.6):
         cves = self.parse_desc(description)
         if not cves:
             return {}
@@ -86,7 +85,7 @@ class DataStore:
 
             if (class_distribution := metadata.get("classification")) is not None:
                 cve_metadata["cve_classes"] = [
-                    k.title() for k, v in class_distribution.items() if v > self.CVE_CLASSIFICATION_THRESHOLD]
+                    k.title() for k, v in class_distribution.items() if v > classification_threshold]
 
             cve_metadata["cwes"] = metadata.get("cwes", [])
             cve_metadata["cpes"] = metadata.get("cpes", [])
