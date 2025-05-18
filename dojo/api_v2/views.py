@@ -1,7 +1,9 @@
 import base64
+import json
 import logging
 import mimetypes
 from datetime import datetime
+from pathlib import Path
 
 import tagulous
 from crum import get_current_user
@@ -170,6 +172,7 @@ from dojo.utils import (
     get_setting,
     get_system_setting,
 )
+from polls_plugin.models import Vote
 
 logger = logging.getLogger(__name__)
 
@@ -3201,3 +3204,32 @@ class NotificationWebhooksViewSet(
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = "__all__"
     permission_classes = (permissions.IsSuperUser, DjangoModelPermissions)  # TODO: add permission also for other users
+
+
+class VoteTriggerViewSet(viewsets.ViewSet):
+    permission_classes = (IsAuthenticated,)
+
+    def create(self, request):
+        path_new_votes = request.data.get("inferences", "")
+
+        if not Path(path_new_votes).is_file():
+            return Response({"error": "File not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with open(path_new_votes, encoding="utf-8") as file:
+                data = json.load(file)
+            votes = [
+                Vote(
+                    finding_id=item["id"],
+                    user_id=item["user_id"],
+                    vote_class=item["vote_class_predito_label"],
+                    timestamp=timezone.now(),
+                    is_model_inference=True,
+                )
+                for item in data
+            ]
+            Vote.objects.bulk_create(votes)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(status=status.HTTP_200_OK)

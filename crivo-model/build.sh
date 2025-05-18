@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+
+echo "[+] Copying datastore.py from dojo"
+cp ../dojo/crivo/datastore.py model/datastore.py
+
+echo "[+] Building crivo-model"
+docker compose -f ../docker-compose.yml -f ../docker-compose-crivo.yml build crivo-model

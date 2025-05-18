@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pickle
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
@@ -16,7 +17,7 @@ from .models import Vote
 logger = logging.getLogger(__name__)
 
 WORKDIR = Path(os.getenv("CRIVO_STORAGE_PATH"))
-VOTES_WORKDIR = WORKDIR / "user_votes"
+VOTES_WORKDIR = WORKDIR / "model/user_votes"
 
 if not VOTES_WORKDIR.exists():
     VOTES_WORKDIR.mkdir(parents=True)
@@ -71,10 +72,10 @@ def save_user_vote(request):
 @require_GET
 @login_required
 def update_risks(request):
-    finding_info = {}
     latest_votes = Vote.objects.filter(is_model_inference=False, user_id=request.user.id).values("finding_id", "user_id").annotate(
         latest_timestamp=Max("timestamp"),
     )
+    votes_data = []
     for vote in latest_votes:
         detailed_vote = Vote.objects.filter(
             finding_id=vote["finding_id"],
@@ -82,18 +83,25 @@ def update_risks(request):
             timestamp=vote["latest_timestamp"],
             is_model_inference=False,
         ).first()
-        logger.info(f"Detailed vote: {detailed_vote}")
 
-        if detailed_vote and detailed_vote.vote_class:
-            finding_info[detailed_vote.finding_id] = {
-                "vote": detailed_vote.vote_class,
-            }
-    for finding_id in finding_info:
-        finding = Finding.objects.filter(id=finding_id).first()
-        if finding:
-            finding_info[finding_id]["features"] = {
+        if detailed_vote:
+            votes_data.append(
+                {
+                    "id": detailed_vote.finding_id,
+                    "user_id": detailed_vote.user_id,
+                    "vote_class": detailed_vote.vote_class,
+                    "timestamp": detailed_vote.timestamp.isoformat(),
+                },
+            )
+    if not votes_data:
+        return JsonResponse({"message": "No votes found. Not updating model."})
+    findings_data = []
+    for finding in Finding.objects.all():
+        findings_data.append(
+            {
+                "id": finding.id,
                 "title": finding.title,
-                "date": finding.date.isoformat() if finding.date else None,
+                "date": finding.date,
                 "description": finding.description,
                 "severity": finding.severity,
                 "vuln_id_from_tool": finding.vuln_id_from_tool,
@@ -101,19 +109,17 @@ def update_risks(request):
                 "epss_score": finding.epss_score,
                 "epss_percentile": finding.epss_percentile,
                 "cve": finding.cve,
-            }
-        else:
-            finding_info.pop(finding_id, None)
-    if not finding_info:
-        logger.info("No votes found. Not updating model.")
-        return JsonResponse({"message": "No votes found. Not updating model."})
-    user_votes_info = {
-        "user_id": request.user.id,
-        "user_findings": finding_info,
-    }
+            },
+        )
+    if not findings_data:
+        return JsonResponse({"message": "No findings available. Not updating model."})
 
-    vote_file_path = VOTES_WORKDIR / f"{request.user.id}_votes_info.json"
-    with vote_file_path.open("w", encoding="utf-8") as f:
-        json.dump(user_votes_info, f)
+    features_file_path = WORKDIR / "model/finding_features.pkl"
+    with open(features_file_path, "wb") as f:
+        pickle.dump(findings_data, f)
 
-    return JsonResponse({"message": "Risks updated successfully"})
+    vote_file_path = VOTES_WORKDIR / f"{request.user.id}_votes.pkl"
+    with open(vote_file_path, "wb") as f:
+        pickle.dump(votes_data, f)
+
+    return JsonResponse({"message": "Retraining Model"})

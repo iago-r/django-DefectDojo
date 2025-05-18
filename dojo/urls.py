@@ -72,6 +72,7 @@ from dojo.api_v2.views import (
     UserContactInfoViewSet,
     UserProfileView,
     UsersViewSet,
+    VoteTriggerViewSet,
 )
 from dojo.api_v2.views import DojoSpectacularAPIView as SpectacularAPIView
 from dojo.banner.urls import urlpatterns as banner_urls
@@ -180,6 +181,7 @@ v2_api.register(r"questionnaire_answered_questionnaires", QuestionnaireAnsweredS
 v2_api.register(r"questionnaire_engagement_questionnaires", QuestionnaireEngagementSurveyViewSet, basename="engagement_survey")
 v2_api.register(r"questionnaire_general_questionnaires", QuestionnaireGeneralSurveyViewSet, basename="general_survey")
 v2_api.register(r"questionnaire_questions", QuestionnaireQuestionViewSet, basename="question")
+v2_api.register(r"vote_triggers", VoteTriggerViewSet, basename="vote_trigger")
 ur = []
 ur += dev_env_urls
 ur += endpoint_urls

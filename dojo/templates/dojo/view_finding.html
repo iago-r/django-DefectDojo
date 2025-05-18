@@ -313,7 +313,9 @@
                         {% get_vote user_votes model_votes finding.id as vote_tuple %}
                         {% with vote_value=vote_tuple.0 from_model=vote_tuple.1 %}
                             <td>
-                                <select class="vote-dropdown {% if from_model %}model-vote{% endif %}" data-finding-id="{{ finding.id }}">
+                                <select class="vote-dropdown"
+                                data-finding-id="{{ finding.id }}"
+                                data-style="{% if from_model %}fa-asterisk{% endif %}">
                                     <option value="NA" {% if vote_value == "NA" %}selected{% endif %}></option>
                                     <option value="Mild" {% if vote_value == "Mild" %}selected{% endif %}>Mild</option>
                                     <option value="Moderate" {% if vote_value == "Moderate" %}selected{% endif %}>Moderate</option>

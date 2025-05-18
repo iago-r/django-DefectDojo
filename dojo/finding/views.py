@@ -803,7 +803,7 @@ class ViewFinding(View):
         user_votes = get_user_votes(request.user.id)
         model_votes = get_model_inference_votes(request.user.id)
         context["user_votes"] = user_votes
-        model_votes["model_votes"] = model_votes
+        context["model_votes"] = model_votes
         # Render the form
         return render(request, self.get_template(), context)
 
