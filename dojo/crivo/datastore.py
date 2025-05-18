@@ -1,10 +1,9 @@
 import gzip
 import logging
-import pickle
 import pathlib
+import pickle
 import re
 import threading
-
 
 logger = logging.getLogger(__name__)
 
