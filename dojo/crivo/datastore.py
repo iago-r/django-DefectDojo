@@ -1,6 +1,5 @@
 import gzip
 import logging
-import os
 import pathlib
 import pickle
 import re
