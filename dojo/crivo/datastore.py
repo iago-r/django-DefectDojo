@@ -1,7 +1,7 @@
 import gzip
 import logging
-import pathlib
 import pickle
+import pathlib
 import re
 import threading
 
