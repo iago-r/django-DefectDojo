@@ -7,3 +7,5 @@ WORKDIR /usr/src/app
 COPY . /usr/src/app
 
 RUN pip3 install --no-cache-dir -r requirements.txt
+
+ENTRYPOINT ["/usr/src/app/entrypoint.sh"]

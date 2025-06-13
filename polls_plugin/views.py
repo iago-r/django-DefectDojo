@@ -5,7 +5,7 @@ import pickle
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Max
+from django.db.models import Max, OuterRef, Subquery
 from django.http import JsonResponse
 from django.utils.timezone import now
 from django.views.decorators.http import require_GET
@@ -72,27 +72,31 @@ def save_user_vote(request):
 @require_GET
 @login_required
 def update_risks(request):
-    latest_votes = Vote.objects.filter(is_model_inference=False, user_id=request.user.id).values("finding_id", "user_id").annotate(
-        latest_timestamp=Max("timestamp"),
-    )
-    votes_data = []
-    for vote in latest_votes:
-        detailed_vote = Vote.objects.filter(
-            finding_id=vote["finding_id"],
-            user_id=vote["user_id"],
-            timestamp=vote["latest_timestamp"],
-            is_model_inference=False,
-        ).first()
+    user_id = request.user.id
 
-        if detailed_vote:
-            votes_data.append(
-                {
-                    "id": detailed_vote.finding_id,
-                    "user_id": detailed_vote.user_id,
-                    "vote_class": detailed_vote.vote_class,
-                    "timestamp": detailed_vote.timestamp.isoformat(),
-                },
-            )
+    latest_timestamps = Vote.objects.filter(
+        user_id=user_id,
+        is_model_inference=False,
+        finding_id=OuterRef("finding_id"),
+    ).values("finding_id").annotate(
+        max_timestamp=Max("timestamp"),
+    ).values("max_timestamp")
+
+    latest_votes = Vote.objects.filter(
+        user_id=user_id,
+        is_model_inference=False,
+        timestamp=Subquery(latest_timestamps),
+    )
+
+    votes_data = [
+        {
+            "id": vote.finding_id,
+            "user_id": vote.user_id,
+            "vote_class": vote.vote_class,
+            "timestamp": vote.timestamp.isoformat(),
+        }
+        for vote in latest_votes
+    ]
     if not votes_data:
         return JsonResponse({"message": "No votes found. Not updating model."})
     findings_data = []

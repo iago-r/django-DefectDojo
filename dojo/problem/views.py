@@ -18,11 +18,18 @@ logger = logging.getLogger(__name__)
 
 class ListProblems(View):
     filter_name = "All"
+    risk_order = {
+        "NA": 0,
+        "Mild": 1,
+        "Moderate": 2,
+        "Severe": 3,
+        "Critical": 4,
+    }
 
     def get_template(self):
         return "dojo/problems_list.html"
 
-    def order_field(self, request: HttpRequest, problems_findings_list):
+    def order_field(self, request: HttpRequest, problems_findings_list, user_votes=None, model_votes=None):
         order_field = request.GET.get("o")
         if order_field:
             reverse_order = order_field.startswith("-")
@@ -38,6 +45,18 @@ class ListProblems(View):
                 problems_findings_list = sorted(problems_findings_list, key=lambda x: len(x.finding_ids), reverse=reverse_order)
             elif order_field == "total_script_ids":
                 problems_findings_list = sorted(problems_findings_list, key=lambda x: len(x.script_ids), reverse=reverse_order)
+            elif order_field == "risk":
+                user_votes = user_votes or {}
+                model_votes = model_votes or {}
+                problems_findings_list = sorted(
+                    problems_findings_list,
+                    key=lambda x: self.risk_order.get(
+                        user_votes.get(str(x.id), model_votes.get(str(x.id), "NA")),
+                        0,
+                    ),
+                    reverse=reverse_order,
+                )
+
         return problems_findings_list
 
     def filters(self, request: HttpRequest):
@@ -166,19 +185,29 @@ class ProblemFindings(ListProblems):
     def filters(self, request: HttpRequest):
         name_filter = request.GET.get("name", "").lower()
         severity_filter = request.GET.getlist("severity")
+        risk_filter = request.GET.getlist("risk")
         script_id_filter = request.GET.get("script_id")
         reporter_filter = request.GET.getlist("reporter")
         status_filter = request.GET.get("status")
         engagement_filter = request.GET.getlist("engagement")
         product_filter = request.GET.getlist("product")
-        return name_filter, severity_filter, script_id_filter, reporter_filter, status_filter, engagement_filter, product_filter
+        return name_filter, severity_filter, risk_filter, script_id_filter, reporter_filter, status_filter, engagement_filter, product_filter
 
-    def filter_findings(self, findings, request: HttpRequest):
-        name_filter, severity_filter, script_id_filter, reporter_filter, status_filter, engagement_filter, product_filter = self.filters(request)
+    def filter_findings(self, findings, request: HttpRequest, user_votes=None, model_votes=None):
+        name_filter, severity_filter, risk_filter, script_id_filter, reporter_filter, status_filter, engagement_filter, product_filter = self.filters(request)
         if name_filter:
             findings = findings.filter(title__icontains=name_filter)
         if severity_filter:
             findings = findings.filter(severity__in=severity_filter)
+        if risk_filter:
+            user_votes = user_votes or {}
+            model_votes = model_votes or {}
+            findings = findings.filter(
+                id__in=[
+                    fid for fid in findings.values_list("id", flat=True)
+                    if user_votes.get(str(fid), model_votes.get(str(fid), "NA")) in risk_filter
+                ],
+            )
         if script_id_filter:
             findings = findings.filter(vuln_id_from_tool__icontains=script_id_filter)
         if reporter_filter:
@@ -191,7 +220,7 @@ class ProblemFindings(ListProblems):
             findings = findings.filter(test__engagement__product__id__in=product_filter)
         return findings
 
-    def get_findings(self, request: HttpRequest, products=None):
+    def get_findings(self, request: HttpRequest, user_votes, model_votes, products=None):
         problem = self.problems_map.get(self.problem_id)
 
         # When the problem not exists, or the findings was changed for severity=Info
@@ -203,8 +232,8 @@ class ProblemFindings(ListProblems):
             findings = Finding.objects.filter(id__in=list_findings, test__engagement__product__in=products)
         else:
             findings = Finding.objects.filter(id__in=list_findings)
-        findings = self.filter_findings(findings, request)
-        return problem.name, self.order_field(request, findings)
+        findings = self.filter_findings(findings, request, user_votes, model_votes)
+        return problem.name, self.order_field(request, findings, user_votes, model_votes)
 
     def get(self, request: HttpRequest, problem_id: int):
         self.problem_id = problem_id
@@ -214,16 +243,16 @@ class ProblemFindings(ListProblems):
             Q(members=request.user) | Q(authorization_groups__in=user_groups),
         ).distinct()
         self.problems_map = self.get_problems_map()
+        user_votes = get_user_votes(request.user.id)
+        model_votes = get_model_inference_votes(request.user.id)
         if request.user.is_superuser or (global_role and global_role.role):
-            problem_name, findings = self.get_findings(request)
+            problem_name, findings = self.get_findings(request, user_votes, model_votes)
             paginated_findings = self.paginate_queryset(findings, request)
         elif products.exists():
-            problem_name, findings = self.get_findings(request, products)
+            problem_name, findings = self.get_findings(request, user_votes, model_votes, products)
             paginated_findings = self.paginate_queryset(findings, request)
         else:
             problem_name, paginated_findings = None, None
-        user_votes = get_user_votes(request.user.id)
-        model_votes = get_model_inference_votes(request.user.id)
 
         context = {
             "problem": problem_name,

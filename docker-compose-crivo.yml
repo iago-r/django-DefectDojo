@@ -63,9 +63,7 @@ services:
 
   crivo-model:
     build: ./crivo-model
-    entrypoint: ["/app/entrypoint.sh"]
     volumes:
-      - ./crivo-model/entrypoint.sh:/app/entrypoint.sh
       - defectdojo_crivo:/app/crivo-metadata:rw
     environment:
       CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"

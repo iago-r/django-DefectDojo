@@ -350,7 +350,7 @@
                                         {% trans "EPSS Percentile" %}
                                     </th>
                                     <th>
-                                        {% trans "Risk" %}
+                                        {% dojo_sort request 'Risk' 'risk' %}
                                     </th>
                                     <th class="nowrap">
                                         {% if filter_name == 'Closed' %}
@@ -1209,7 +1209,6 @@
             const spinner = document.getElementById("loading-spinner");
             const status = document.getElementById("update-status");
     
-            // Mostra o spinner e limpa status
             spinner.style.display = "inline-block";
             status.textContent = "";
     
@@ -1229,7 +1228,6 @@
                 console.error("Error:", error);
             })
             .finally(() => {
-                // Esconde o spinner ao finalizar
                 spinner.style.display = "none";
             });
         });

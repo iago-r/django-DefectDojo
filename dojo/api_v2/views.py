@@ -141,6 +141,7 @@ from dojo.models import (
     User,
     UserContactInfo,
 )
+from dojo.notifications.helper import create_notification
 from dojo.product.queries import (
     get_authorized_app_analysis,
     get_authorized_dojo_meta,
@@ -3206,7 +3207,7 @@ class NotificationWebhooksViewSet(
     permission_classes = (permissions.IsSuperUser, DjangoModelPermissions)  # TODO: add permission also for other users
 
 
-class VoteTriggerViewSet(viewsets.ViewSet):
+class RiskTriggerViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
     def create(self, request):
@@ -3218,17 +3219,32 @@ class VoteTriggerViewSet(viewsets.ViewSet):
         try:
             with open(path_new_votes, encoding="utf-8") as file:
                 data = json.load(file)
-            votes = [
-                Vote(
-                    finding_id=item["id"],
-                    user_id=item["user_id"],
-                    vote_class=item["vote_class_predito_label"],
-                    timestamp=timezone.now(),
-                    is_model_inference=True,
+            user_id = set()
+            votes = []
+            for item in data:
+                user_id.add(item["user_id"])
+                votes.append(
+                    Vote(
+                        finding_id=item["id"],
+                        user_id=item["user_id"],
+                        vote_class=item["predicted_vote_label"],
+                        timestamp=timezone.now(),
+                        is_model_inference=True,
+                    ),
                 )
-                for item in data
-            ]
+            if not user_id or len(user_id) > 1:
+                return Response(
+                    {"error": "More than one user ID found or no user ID provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             Vote.objects.bulk_create(votes)
+            username = Dojo_User.objects.get(id=list(user_id)[0]).username
+            logger.info(f"Model votes have been saved by user: {username}")
+            create_notification(
+                event="other",
+                title="Model votes have been saved.",
+                recipients=[username],
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

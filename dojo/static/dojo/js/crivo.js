@@ -7,8 +7,7 @@ document.addEventListener("change", function (event) {
         const VOTE_CHOICES_CLASS = ["NA", "Mild", "Moderate", "Severe", "Critical"];
         const VOTE_CHOICES_NUM = ["NV", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
-        let vote_type = "unknown"
-
+        let vote_type = "unknown";
         if (VOTE_CHOICES_CLASS.includes(vote)) {
             vote_type = "class";
         } else if (VOTE_CHOICES_NUM.includes(vote)) {

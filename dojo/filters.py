@@ -1149,6 +1149,17 @@ class ProblemFindingFilter(FilterSet):
         method="filter_severity",
         label="Severity",
     )
+    risk = MultipleChoiceFilter(
+        choices=[
+            ("NA", "Nothing selected"),
+            ("Mild", "Mild"),
+            ("Moderate", "Moderate"),
+            ("Severe", "Severe"),
+            ("Critical", "Critical"),
+        ],
+        method="filter_risk",
+        label="Risk",
+    )
     script_id = CharFilter(method="filter_script_id", label="Script ID")
     reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none(), label="Reporter")
     status = ChoiceFilter(choices=[("Yes", "Yes"), ("No", "No")], method="filter_status", label="Active")
@@ -1161,6 +1172,9 @@ class ProblemFindingFilter(FilterSet):
     def filter_severity(self, queryset, name, value):
         return queryset
 
+    def filter_risk(self, queryset, name, value):
+        return queryset
+
     def filter_script_id(self, queryset, name, value):
         return queryset
 
@@ -1169,7 +1183,7 @@ class ProblemFindingFilter(FilterSet):
 
     class Meta:
         model = Finding
-        fields = ["name", "severity", "script_id", "reporter", "status", "engagement", "product"]
+        fields = ["name", "severity", "risk", "script_id", "reporter", "status", "engagement", "product"]
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -1996,6 +2010,17 @@ class FindingFilterWithoutObjectLookups(FindingFilterHelper, FindingTagStringFil
 class FindingFilter(FindingFilterHelper, FindingTagFilter):
     reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none())
     reviewers = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none())
+    risk = MultipleChoiceFilter(
+        choices=[
+            ("NA", "Nothing selected"),
+            ("Mild", "Mild"),
+            ("Moderate", "Moderate"),
+            ("Severe", "Severe"),
+            ("Critical", "Critical"),
+        ],
+        method="filter_risk",
+        label="Risk",
+    )
     test__engagement__product__prod_type = ModelMultipleChoiceFilter(
         queryset=Product_Type.objects.none(),
         label="Product Type")
@@ -2011,6 +2036,9 @@ class FindingFilter(FindingFilterHelper, FindingTagFilter):
     test = ModelMultipleChoiceFilter(
         queryset=Test.objects.none(),
         label="Test")
+
+    def filter_risk(self, queryset, name, value):
+        return queryset
 
     if is_finding_groups_enabled():
         finding_group = ModelMultipleChoiceFilter(
