@@ -16,10 +16,10 @@ from settings import (
     MAX_DEPTH,
     NUM_ESTIMATORS,
     PREDICT_DIR,
+    SEVERITY_LABELS,
     TARGET_COLUMN,
     URL_API,
 )
-from sklearn.preprocessing import LabelEncoder
 from xgboost import XGBRegressor
 
 logger = logging.getLogger(__name__)
@@ -40,11 +40,9 @@ def prepare_training_data(training_df: pd.DataFrame) -> pd.DataFrame:
     if "vote_num" in training_df.columns:
         training_df = training_df[training_df["vote_num"] != "NV"]
 
-    training_df["in_kev"] = training_df["in_kev"].astype(int)
-    training_df["has_dns_keyword"] = training_df["has_dns_keyword"].astype(int)
-
-    for col in ["severity", "os", "mitigation"]:
-        training_df[col] = LabelEncoder().fit_transform(training_df[col].astype(str))
+    training_df["severity"] = training_df["severity"].astype(str).map(SEVERITY_LABELS).fillna(-1).astype(int)
+    for col in ["has_dns_keyword", "in_kev", "mitigation", "os"]:
+        training_df[col] = training_df[col].astype("category")
 
     return training_df
 
@@ -52,11 +50,10 @@ def prepare_training_data(training_df: pd.DataFrame) -> pd.DataFrame:
 def prepare_prediction_data(pred_df: pd.DataFrame) -> pd.DataFrame:
     pred_df = pred_df[pred_df[TARGET_COLUMN].isna()].copy()
     pred_df = pred_df.set_index("fid", drop=False)
-    pred_df["in_kev"] = pred_df["in_kev"].astype(int)
-    pred_df["has_dns_keyword"] = pred_df["has_dns_keyword"].astype(int)
 
-    for col in ["severity", "os", "mitigation"]:
-        pred_df[col] = LabelEncoder().fit_transform(pred_df[col].astype(str))
+    pred_df["severity"] = pred_df["severity"].astype(str).map(SEVERITY_LABELS).fillna(-1).astype(int)
+    for col in ["has_dns_keyword", "in_kev", "mitigation", "os"]:
+        pred_df[col] = pred_df[col].astype("category")
 
     return pred_df
 
