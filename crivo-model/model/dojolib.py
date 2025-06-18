@@ -7,6 +7,7 @@ import re
 from typing import TYPE_CHECKING, ClassVar
 
 import pandas as pd
+from settings import SEVERITY_LABELS
 
 if TYPE_CHECKING:
     import pathlib
@@ -96,6 +97,7 @@ class DojoFinding:
 
         return DojoFindingFeatures(
             fid=self.id,
+            severity=SEVERITY_LABELS.get(self.severity, -1),
             max_cvss_score=max_cvss_score,
             max_epss_score=max_epss_score,
             max_epss_percentile=max_epss_percentile,
@@ -114,7 +116,6 @@ class DojoFinding:
             cve_cross_site_scripting=cross_site_scripting,
             in_kev=in_kev,
             has_dns_keyword=DojoFinding.anonymized_hostname_has_keyword(hostname),
-            severity=OpenvasSeverity(self.severity),
             os=OperatingSystem.from_description(self.description),
             mitigation=MitigationType.parse_raw(self.mitigation),
         )
@@ -155,6 +156,7 @@ class DojoFindingsMetadata:
 @dataclasses.dataclass
 class DojoFindingFeatures:
     fid: int
+    severity: int
     max_cvss_score: float
     max_epss_score: float
     max_epss_percentile: float
@@ -173,11 +175,10 @@ class DojoFindingFeatures:
     cve_cross_site_scripting: float
     in_kev: bool
     has_dns_keyword: bool
-    severity: OpenvasSeverity
     os: OperatingSystem
     mitigation: MitigationType
 
-    CATEGORICAL_FEATURES: ClassVar[list[str]] = ["in_kev", "has_dns_keyword", "severity", "os", "mitigation"]
+    CATEGORICAL_FEATURES: ClassVar[list[str]] = ["in_kev", "has_dns_keyword", "os", "mitigation"]
 
 
 FEATURE_NAMES = {
@@ -256,15 +257,6 @@ class MitigationType(enum.StrEnum):
             return MitigationType(first_line)
         except ValueError:
             return MitigationType.OTHERS
-
-
-class OpenvasSeverity(enum.StrEnum):
-    CRITICAL = "Critical"
-    HIGH = "High"
-    MEDIUM = "Medium"
-    LOW = "Low"
-    INFO = "Info"
-    UNDEFINED = "Undefined"
 
 
 def load_features_rankings(

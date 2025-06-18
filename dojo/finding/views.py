@@ -100,6 +100,7 @@ from dojo.models import (
     Vulnerability_Id_Template,
 )
 from dojo.notifications.helper import create_notification
+from dojo.problem.helper import RISK_LABELS
 from dojo.test.queries import get_authorized_tests
 from dojo.utils import (
     FileIterWrapper,
@@ -433,16 +434,9 @@ class ListFindings(View, BaseListFindings):
             )
 
     def sort_findings_by_risk(self, findings, user_votes, model_votes, *, reverse=False):
-        risk_order = {
-            "NA": 0,
-            "Mild": 1,
-            "Moderate": 2,
-            "Severe": 3,
-            "Critical": 4,
-        }
         return sorted(
             findings,
-            key=lambda x: risk_order.get(
+            key=lambda x: RISK_LABELS.get(
                 user_votes.get(str(x.id), model_votes.get(str(x.id), "NA")),
                 0,
             ),

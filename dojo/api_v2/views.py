@@ -3239,7 +3239,7 @@ class RiskTriggerViewSet(viewsets.ViewSet):
                 )
             Vote.objects.bulk_create(votes)
             username = Dojo_User.objects.get(id=list(user_id)[0]).username
-            logger.info(f"Model votes have been saved by user: {username}")
+            logger.info(f"Model votes have been saved by user {user_id}.")
             create_notification(
                 event="other",
                 title="Model votes have been saved.",
@@ -3247,5 +3247,16 @@ class RiskTriggerViewSet(viewsets.ViewSet):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Attempt to delete the file after processing
+        try:
+            Path(path_new_votes).unlink()
+            logger.info(f"File {path_new_votes} has been deleted after processing.")
+        except OSError as e:
+            logger.error(f"Error deleting file {path_new_votes}: {e}")
+            return Response(
+                {"error": f"Error deleting file: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response(status=status.HTTP_200_OK)

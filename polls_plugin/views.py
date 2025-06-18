@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pickle
+from datetime import datetime
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
@@ -18,9 +19,13 @@ logger = logging.getLogger(__name__)
 
 WORKDIR = Path(os.getenv("CRIVO_STORAGE_PATH"))
 VOTES_WORKDIR = WORKDIR / "model/user_votes"
+FEATURES_WORKDIR = WORKDIR / "model/finding_features"
 
 if not VOTES_WORKDIR.exists():
     VOTES_WORKDIR.mkdir(parents=True)
+
+if not FEATURES_WORKDIR.exists():
+    FEATURES_WORKDIR.mkdir(parents=True)
 
 
 @login_required
@@ -118,11 +123,11 @@ def update_risks(request):
     if not findings_data:
         return JsonResponse({"message": "No findings available. Not updating model."})
 
-    features_file_path = WORKDIR / "model/finding_features.pkl"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    features_file_path = FEATURES_WORKDIR / f"{request.user.id}_{timestamp}_features.pkl"
     with open(features_file_path, "wb") as f:
         pickle.dump(findings_data, f)
-
-    vote_file_path = VOTES_WORKDIR / f"{request.user.id}_votes.pkl"
+    vote_file_path = VOTES_WORKDIR / f"{request.user.id}_{timestamp}_votes.pkl"
     with open(vote_file_path, "wb") as f:
         pickle.dump(votes_data, f)
 

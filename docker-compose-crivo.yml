@@ -66,4 +66,5 @@ services:
     volumes:
       - defectdojo_crivo:/app/crivo-metadata:rw
     environment:
+      TOKEN_API_KEY: "<your_dojo_auth_token_here>"
       CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
