@@ -8,9 +8,9 @@ CVE2META_PICKLE_FP = WORKDIR / "cve-metadata/cve2meta.pkl.gz"
 PREDICT_DIR = WORKDIR / "model/predict_votes"
 URL_API = "http://nginx:8080/api/v2/risk_triggers/"
 TARGET_COLUMN = "ranking"
-NUM_ESTIMATORS = 100
-MAX_DEPTH = 10
-LEARNING_RATE = 0.2
+XGBOOST_NUM_ESTIMATORS = 100
+XGBOOST_MAX_DEPTH = 10
+XGBOOST_LEARNING_RATE = 0.2
 SEVERITY_LABELS = {
     "Critical": 4,
     "High": 3,

@@ -10,5 +10,6 @@ docker compose -f ../docker-compose.yml -f ../docker-compose-crivo.yml build cri
 echo "[+] Removing datastore.py"
 rm model/datastore.py
 
-echo "[+] Running crivo-model"
-docker compose -f ../docker-compose.yml -f ../docker-compose-crivo.yml up -d crivo-model
+echo "[✔] Build complete."
+echo "To run the container manually, execute:"
+echo "docker compose -f ../docker-compose.yml -f ../docker-compose-crivo.yml up -d crivo-model"

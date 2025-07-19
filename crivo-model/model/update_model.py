@@ -1,27 +1,32 @@
 import logging
+import pickle
 import re
+import signal
 import time
 from pathlib import Path
 
 import dojolib
 import numpy as np
 import pandas as pd
+import psutil
 import requests
 from datastore import DataStore
 from settings import (
     AUTHORIZATION,
     CVE2META_PICKLE_FP,
-    LEARNING_RATE,
-    MAX_DEPTH,
-    NUM_ESTIMATORS,
     PREDICT_DIR,
     TARGET_COLUMN,
     URL_API,
     WORKDIR,
+    XGBOOST_LEARNING_RATE,
+    XGBOOST_MAX_DEPTH,
+    XGBOOST_NUM_ESTIMATORS,
 )
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from xgboost import XGBRegressor
+
+shutdown_flag = False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,9 +71,9 @@ def prepare_prediction_data(pred_df: pd.DataFrame) -> pd.DataFrame:
 
 def train_model(x: pd.DataFrame, y: pd.Series) -> XGBRegressor:
     model = XGBRegressor(
-        n_estimators=NUM_ESTIMATORS,
-        learning_rate=LEARNING_RATE,
-        max_depth=MAX_DEPTH,
+        n_estimators=XGBOOST_NUM_ESTIMATORS,
+        learning_rate=XGBOOST_LEARNING_RATE,
+        max_depth=XGBOOST_MAX_DEPTH,
         verbosity=0,
         enable_categorical=True,
     )
@@ -83,23 +88,52 @@ def predict(df: pd.DataFrame, model: XGBRegressor, feature_columns: list[str]) -
     return df
 
 
-def export_predictions_to_json(predictions_df: pd.DataFrame, output_path: Path) -> None:
-    df_to_export = predictions_df.assign(id=predictions_df.index)[["id", "user_id", "predicted_vote_label", "predicted_vote_class"]]
+def export_predictions_to_pickle(predictions_df: pd.DataFrame, output_path: Path) -> None:
+    df_to_pickle = predictions_df.assign(id=predictions_df.index)[
+        ["id", "user_id", "predicted_vote_label", "predicted_vote_class"]
+    ].to_dict(orient="records")
+    with open(output_path, "wb") as f:
+        pickle.dump(df_to_pickle, f)
+    logger.info(f"Exported prediction results to {output_path} as pickle")
 
-    df_to_export.to_json(output_path, orient="records", lines=False, indent=2, force_ascii=False)
-    logger.info(f"Exported prediction results to {output_path}")
 
-
-def request_create_inferences(predict_file_path: Path):
+def request_create_inferences(predict_file_path: Path, total_votes: int) -> None:
     headers = {
-        "Content-Type": "application/json",
         "Authorization": f"Token {AUTHORIZATION}",
     }
     payload = {
         "inferences": str(predict_file_path),
     }
-    response = requests.post(URL_API, headers=headers, json=payload, verify=True, timeout=20)
-    logger.info(f"Response from API: {response.status_code} - {response.text}")
+
+    try:
+        response = requests.post(
+            URL_API,
+            headers=headers,
+            json=payload,
+            verify=True,
+            timeout=20,
+        )
+    except requests.RequestException:
+        logger.exception(f"Request to {URL_API} failed")
+        return
+
+    try:
+        resp_json = response.json()
+    except ValueError:
+        resp_json = None
+
+    if response.status_code // 100 == 2:
+        if resp_json and "imported" in resp_json:
+            if resp_json["imported"] == total_votes:
+                logger.info(f"Successfully created inferences for {total_votes} votes.")
+            else:
+                logger.warning(
+                    f"Created inferences for {resp_json['imported']} votes, expected {total_votes} votes.",
+                )
+        else:
+            logger.info(f"Response from API: {response.status_code} - {response.text}")
+    else:
+        logger.error(f"API error response: {response.status_code} - {response.text}")
 
 
 def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: DataStore):
@@ -110,6 +144,7 @@ def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: Dat
         error_message = (
             f"Expected exactly one user_id in the data, but found {len(unique_users)}: {unique_users}"
         )
+        logger.error(error_message)
         raise ValueError(error_message)
     user_id = int(unique_users[0])
     class_df = class_df.drop(columns=["user_id"])
@@ -122,18 +157,28 @@ def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: Dat
     prediction_result["user_id"] = user_id
 
     timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-    predict_file = PREDICT_DIR / f"user2data_{user_id}_{timestamp}.json"
-    export_predictions_to_json(prediction_result, predict_file)
-    request_create_inferences(predict_file)
+    predict_file = PREDICT_DIR / f"user2data_{user_id}_{timestamp}.pkl"
+    export_predictions_to_pickle(prediction_result, predict_file)
 
-    vote_fp.unlink(missing_ok=True)
-    features_fp.unlink(missing_ok=True)
+    total_votes = len(prediction_result)
+    request_create_inferences(predict_file, total_votes)
+
+    if vote_fp.exists():
+        vote_fp.unlink()
+    else:
+        logger.warning(f"Vote file {vote_fp} was missing during cleanup.")
+
+    if features_fp.exists():
+        features_fp.unlink()
+    else:
+        logger.warning(f"Features file {features_fp} was missing during cleanup.")
     logger.info("Cleanup temporary files completed.")
 
 
 def handle_event(event, datastore):
     vote_fp = Path(event.src_path)
     if vote_fp.suffix != ".pkl":
+        logger.debug(f"Ignoring non-pkl file in votes directory: {vote_fp}")
         return
     logger.info(f"Detected new vote file: {vote_fp.name}")
     match = re.search(r"([^_]+)_(\d{8}_\d{6})_votes\.pkl", vote_fp.name)
@@ -149,10 +194,21 @@ def handle_event(event, datastore):
         logger.warning(f"Features file not found: {features_fp}")
 
 
+def handle_shutdown(signum, frame):
+    global shutdown_flag
+    shutdown_flag = True
+
+
 def main():
     logger.info("Loading datastore...")
     datastore = DataStore()
     datastore.load(metadata_fp=CVE2META_PICKLE_FP)
+
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    ram_used_mb = mem_info.rss / (1024 * 1024)  # Convert bytes to MB
+    logger.info(f"RAM usage after loading DataStore: {ram_used_mb:.2f} MB")
+
     logger.info(f"Watching directory: {VOTES_DIR}")
     observer = Observer()
 
@@ -163,12 +219,21 @@ def main():
     event_handler.on_created = on_created
     observer.schedule(event_handler, str(VOTES_DIR), recursive=False)
     observer.start()
+
+    signal.signal(signal.SIGINT, handle_shutdown)
+    signal.signal(signal.SIGTERM, handle_shutdown)
     try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
+        if hasattr(signal, "pause"):
+            while not shutdown_flag:
+                signal.pause()
+        else:
+            while not shutdown_flag:
+                time.sleep(1)
+    finally:
+        logger.info("Stopping observer...")
         observer.stop()
-    observer.join()
+        observer.join()
+        logger.info("Shutdown complete.")
 
 
 if __name__ == "__main__":

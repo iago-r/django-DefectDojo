@@ -1,7 +1,7 @@
 import base64
-import json
 import logging
 import mimetypes
+import pickle
 from datetime import datetime
 from pathlib import Path
 
@@ -3217,29 +3217,33 @@ class RiskTriggerViewSet(viewsets.ViewSet):
             return Response({"error": "File not found."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            with open(path_new_votes, encoding="utf-8") as file:
-                data = json.load(file)
-            user_id = set()
+            with open(path_new_votes, "rb") as file:
+                data = pickle.load(file)
+            user_ids = set()
             votes = []
+            timestamp = timezone.now()
             for item in data:
-                user_id.add(item["user_id"])
+                user_ids.add(item["user_id"])
                 votes.append(
                     Vote(
                         finding_id=item["id"],
                         user_id=item["user_id"],
                         vote_class=item["predicted_vote_label"],
-                        timestamp=timezone.now(),
+                        timestamp=timestamp,
                         is_model_inference=True,
                     ),
                 )
-            if not user_id or len(user_id) > 1:
+            if not user_ids or len(user_ids) > 1:
                 return Response(
                     {"error": "More than one user ID found or no user ID provided."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            imported_count = len(votes)
             Vote.objects.bulk_create(votes)
-            username = Dojo_User.objects.get(id=list(user_id)[0]).username
-            logger.info(f"Model votes have been saved by user {user_id}.")
+
+            username = Dojo_User.objects.get(id=list(user_ids)[0]).username
+            logger.info(f"Model votes have been saved by user {user_ids}.")
             create_notification(
                 event="other",
                 title="Model votes have been saved.",
@@ -3254,9 +3258,5 @@ class RiskTriggerViewSet(viewsets.ViewSet):
             logger.info(f"File {path_new_votes} has been deleted after processing.")
         except OSError as e:
             logger.error(f"Error deleting file {path_new_votes}: {e}")
-            return Response(
-                {"error": f"Error deleting file: {e}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
 
-        return Response(status=status.HTTP_200_OK)
+        return Response({"imported": imported_count}, status=status.HTTP_200_OK)
