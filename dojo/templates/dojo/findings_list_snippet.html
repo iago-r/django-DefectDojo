@@ -4,7 +4,7 @@
 {% load get_endpoint_status %}
 {% load static %}
 {% load i18n %}
-{% load polls_filters %}
+{% load risk_filters %}
 {% block findings_list %}
     <div class="row">
         <div class="col-md-12">
@@ -634,17 +634,17 @@
                                         <td class="nowrap text-right">
                                             {{ finding.epss_percentile|format_epss }}
                                         </td>
-                                        {% get_vote user_votes model_votes finding.id as vote_tuple %}
-                                        {% with vote_value=vote_tuple.0 from_model=vote_tuple.1 %}
+                                        {% get_assessment user_assessments model_inferences finding.id as risk_tuple %}
+                                        {% with risk_value=risk_tuple.0 from_model=risk_tuple.1 %}
                                             <td>
-                                                <select class="vote-dropdown"
+                                                <select class="risk-dropdown"
                                                 data-finding-id="{{ finding.id }}"
                                                 data-style="{% if from_model %}fa-asterisk{% endif %}">
-                                                    <option value="NA" {% if vote_value == "NA" %}selected{% endif %}></option>
-                                                    <option value="Mild" {% if vote_value == "Mild" %}selected{% endif %}>Mild</option>
-                                                    <option value="Moderate" {% if vote_value == "Moderate" %}selected{% endif %}>Moderate</option>
-                                                    <option value="Severe" {% if vote_value == "Severe" %}selected{% endif %}>Severe</option>
-                                                    <option value="Critical" {% if vote_value == "Critical" %}selected{% endif %}>Critical</option>
+                                                    <option value="NA" {% if risk_value == "NA" %}selected{% endif %}></option>
+                                                    <option value="Mild" {% if risk_value == "Mild" %}selected{% endif %}>Mild</option>
+                                                    <option value="Moderate" {% if risk_value == "Moderate" %}selected{% endif %}>Moderate</option>
+                                                    <option value="Severe" {% if risk_value == "Severe" %}selected{% endif %}>Severe</option>
+                                                    <option value="Critical" {% if risk_value == "Critical" %}selected{% endif %}>Critical</option>
                                                 </select>
                                             </td>
                                         {% endwith %}
@@ -795,7 +795,7 @@
                     { "data": "cve" },
                     { "data": "epss_score", "type": "num", "render": percentSort },
                     { "data": "epss_percentile", "type": "num", "render": percentSort },
-                    { "data": "vote", "render": function(data, type, row, meta) {
+                    { "data": "risk", "render": function(data, type, row, meta) {
                         var order = {
                             "NA": 0,
                             "Mild": 1,
@@ -889,7 +889,7 @@
             var columns = datatables_columns;
 
             // Filter the list of items to display based on what is shown.
-            var disallowed_entries = new Set(["checkbox", "action", "vote"]);
+            var disallowed_entries = new Set(["checkbox", "action", "risk"]);
             var data_column_list = [];
             for (var i = 0; i < columns.length; i++) {
                 if (!disallowed_entries.has(columns[i]["data"])) {
@@ -1212,7 +1212,7 @@
             spinner.style.display = "inline-block";
             status.textContent = "";
     
-            fetch("{% url 'update_risks' %}", {
+            fetch("{% url 'update_inferences' %}", {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",

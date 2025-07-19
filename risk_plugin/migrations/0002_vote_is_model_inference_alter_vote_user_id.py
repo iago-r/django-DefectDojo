@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("polls_plugin", "0001_initial"),
+        ("risk_plugin", "0001_initial"),
     ]
 
     operations = [

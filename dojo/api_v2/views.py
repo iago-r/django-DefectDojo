@@ -173,7 +173,7 @@ from dojo.utils import (
     get_setting,
     get_system_setting,
 )
-from polls_plugin.models import Vote
+from risk_plugin.models import Risk
 
 logger = logging.getLogger(__name__)
 
@@ -3211,24 +3211,24 @@ class RiskTriggerViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
     def create(self, request):
-        path_new_votes = request.data.get("inferences", "")
+        path_new_inferences = request.data.get("inferences", "")
 
-        if not Path(path_new_votes).is_file():
+        if not Path(path_new_inferences).is_file():
             return Response({"error": "File not found."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            with open(path_new_votes, "rb") as file:
+            with open(path_new_inferences, "rb") as file:
                 data = pickle.load(file)
             user_ids = set()
-            votes = []
+            inferences = []
             timestamp = timezone.now()
             for item in data:
                 user_ids.add(item["user_id"])
-                votes.append(
-                    Vote(
+                inferences.append(
+                    Risk(
                         finding_id=item["id"],
                         user_id=item["user_id"],
-                        vote_class=item["predicted_vote_label"],
+                        risk_class=item["predicted_risk_label"],
                         timestamp=timestamp,
                         is_model_inference=True,
                     ),
@@ -3239,14 +3239,14 @@ class RiskTriggerViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            imported_count = len(votes)
-            Vote.objects.bulk_create(votes)
+            imported_count = len(inferences)
+            Risk.objects.bulk_create(inferences)
 
             username = Dojo_User.objects.get(id=list(user_ids)[0]).username
-            logger.info(f"Model votes have been saved by user {user_ids}.")
+            logger.info(f"Model inferences have been saved by user {user_ids}.")
             create_notification(
                 event="other",
-                title="Model votes have been saved.",
+                title="Model inferences have been saved.",
                 recipients=[username],
             )
         except Exception as e:
@@ -3254,9 +3254,9 @@ class RiskTriggerViewSet(viewsets.ViewSet):
 
         # Attempt to delete the file after processing
         try:
-            Path(path_new_votes).unlink()
-            logger.info(f"File {path_new_votes} has been deleted after processing.")
+            Path(path_new_inferences).unlink()
+            logger.info(f"File {path_new_inferences} has been deleted after processing.")
         except OSError as e:
-            logger.error(f"Error deleting file {path_new_votes}: {e}")
+            logger.error(f"Error deleting file {path_new_inferences}: {e}")
 
         return Response({"imported": imported_count}, status=status.HTTP_200_OK)

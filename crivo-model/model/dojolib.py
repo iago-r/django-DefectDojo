@@ -126,8 +126,8 @@ class DojoRanking:
     id: int
     user_id: int
     timestamp: str
-    vote_class: str | None = None
-    vote_num: int | None = None
+    risk_class: str | None = None
+    risk_num: int | None = None
     ranking: int | None = dataclasses.field(init=False)
 
     CLASS_MAP: ClassVar[dict[str, float | None]] = {
@@ -139,10 +139,10 @@ class DojoRanking:
     }
 
     def __post_init__(self):
-        if self.vote_num is not None:
-            self.ranking = int(self.vote_num)
-        elif self.vote_class is not None:
-            self.ranking = DojoRanking.CLASS_MAP[self.vote_class]
+        if self.risk_num is not None:
+            self.ranking = int(self.risk_num)
+        elif self.risk_class is not None:
+            self.ranking = DojoRanking.CLASS_MAP[self.risk_class]
         else:
             self.ranking = None
 
@@ -261,14 +261,14 @@ class MitigationType(enum.StrEnum):
 
 def load_features_rankings(
     features_file: pathlib.Path,
-    votes_file: pathlib.Path,
+    risk_file: pathlib.Path,
     ds: datastore.DataStore,
 ) -> tuple[list[DojoFindingFeatures], list[DojoRanking]]:
     findings_raw: list[dict] = pickle.load(open(features_file, "rb"))
     findings: list[DojoFinding] = [DojoFinding(**f) for f in findings_raw]
     features: list[DojoFindingFeatures] = [f.compute_features(ds) for f in findings]
 
-    rankings_raw: list[dict] = pickle.load(open(votes_file, "rb"))
+    rankings_raw: list[dict] = pickle.load(open(risk_file, "rb"))
     rankings = [DojoRanking(**r) for r in rankings_raw]
 
     return features, rankings
@@ -281,7 +281,7 @@ def get_merged_df(
     for col in DojoFindingFeatures.CATEGORICAL_FEATURES:
         df_features[col] = df_features[col].astype("category")
         df_rankings = pd.DataFrame(rankings)
-    df_rankings = df_rankings.drop(columns=["timestamp", "vote_class", "vote_num"])
+    df_rankings = df_rankings.drop(columns=["timestamp", "risk_class", "risk_num"])
     df_merged = df_features.merge(df_rankings, left_on="fid", right_on="id", how="left")
     if "id_y" in df_merged.columns:
         df_merged = df_merged.drop(columns=["id_y"])

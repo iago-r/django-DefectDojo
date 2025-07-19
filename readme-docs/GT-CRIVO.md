@@ -19,7 +19,13 @@ docker compose build
 docker compose -f docker-compose.yml -f docker-compose-crivo.yml run --rm crivo-init
 # Launch the containers, pass the `-d` parameter if you want to detach
 # container output from the terminal:
-docker compose up
+docker compose up -d
+# After accessing the admin dashboard, go to the URL `/api/key-v2` and copy your API key.
+# Place the API key in `docker-compose-crivo.yml` under `TOKEN_API_KEY` in the `crivo-model` container.
+# Now you can start the `crivo-model` container.
+cd crivo-model
+./build.sh
+docker compose -f ../docker-compose.yml -f ../docker-compose-crivo.yml up -d crivo-model
 ```
 
 You will immediately get the aggregation of identical `Finding`s into `Problem`s and the ability to set the severity of each vulnerability.  CVE metadata, however, will only be available for new OpenVAS XML imports; this is because imports made without GT-CRIVO's modifications do not store CVE information reported by OpenVAS.
@@ -32,7 +38,7 @@ Our project has made three main extensions to DefectDojo.  A key requirement our
 
 1. The ability to group `Findings` into `Problems`.  Our extension receives as input any mapping of `Findings` to `Problems`; one of which we have built using Artificial Intelligence to analyze the detection scripts used by scanning techniques.
 
-2. The ability for analysts to specify the priority of a vulnerability (a `Vote`).  This is integrated with Dojo's interface, and the information used to train the vulnerability prioritization model developed in the project. `Vote`s are stored in a separate SQLite database.
+2. The ability for analysts to specify the priority of a vulnerability (a `Risk`).  This is integrated with Dojo's interface, and the information used to train the vulnerability prioritization model developed in the project. `Risk`s are stored in a separate SQLite database.
 
 3. Integration of complementary metadata which to aid analysts investigate and troubleshoot a `Finding`.  The metadata are downloaded directly from [authoritative](https://www.first.org/epss/) [sources](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), and shown in Dojo's `Finding` view.  Some of the metadata we integrate [are also available as a paid feature in Dojo's Pro subscription](https://github.com/DefectDojo/django-DefectDojo/discussions/11796), which helps illustrate their usefulness.
 
@@ -174,12 +180,12 @@ If you want to refresh the problems map at any point in time, you can to remove 
 docker exec -it <redis_container_name> redis-cli DEL problems id_to_problem
 ```
 
-### `Vote` Database
+### `Risk` Database
 
-The `Vote` database is totally separate from Dojo's PostgreSQL database.  We store analyst votes in a SQLite database that is stored in the metadata volume.  Only `file` URLs are supported:
+The `Risk` database is totally separate from Dojo's PostgreSQL database.  We store analyst risks in a SQLite database that is stored in the metadata volume.  Only `file` URLs are supported:
 
 ```python
-VOTE_DB_URL = "file:///app/crivo-metadata/vote-db.sqlite3"
+RISK_DB_URL = "file:///app/crivo-metadata/risk-db.sqlite3"
 ```
 
 > After we have data to train a new vulnerability prioritization model, it will be added to the metadata directory and a corresponding configuration entry will be added.

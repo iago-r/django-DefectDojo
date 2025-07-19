@@ -35,23 +35,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-VOTES_DIR = WORKDIR / "model/user_votes"
+ASSESSMENT_DIR = WORKDIR / "model/user_assessments"
 FEATURES_DIR = WORKDIR / "model/finding_features"
 CLASS_LABELS = {v: k for k, v in dojolib.DojoRanking.CLASS_MAP.items() if v is not None}
 
 
-def load_combined_data(vote_fp: Path, features_fp: Path, datastore: DataStore) -> pd.DataFrame:
-    class_features, class_rankings = dojolib.load_features_rankings(features_fp, vote_fp, datastore)
+def load_combined_data(assessment_fp: Path, features_fp: Path, datastore: DataStore) -> pd.DataFrame:
+    class_features, class_rankings = dojolib.load_features_rankings(features_fp, assessment_fp, datastore)
     return dojolib.get_merged_df(class_features, class_rankings)
 
 
 def prepare_training_data(training_df: pd.DataFrame) -> pd.DataFrame:
     training_df = training_df[training_df[TARGET_COLUMN].notna()].copy()
 
-    if "vote_class" in training_df.columns:
-        training_df = training_df[training_df["vote_class"] != "NA"]
-    if "vote_num" in training_df.columns:
-        training_df = training_df[training_df["vote_num"] != "NV"]
+    if "risk_class" in training_df.columns:
+        training_df = training_df[training_df["risk_class"] != "NA"]
+    if "risk_num" in training_df.columns:
+        training_df = training_df[training_df["risk_num"] != "NV"]
 
     for col in dojolib.DojoFindingFeatures.CATEGORICAL_FEATURES:
         training_df[col] = training_df[col].astype("category")
@@ -83,21 +83,21 @@ def train_model(x: pd.DataFrame, y: pd.Series) -> XGBRegressor:
 
 def predict(df: pd.DataFrame, model: XGBRegressor, feature_columns: list[str]) -> pd.DataFrame:
     df["predicted_raw_score"] = model.predict(df[feature_columns])
-    df["predicted_vote_class"] = np.round(df["predicted_raw_score"])
-    df["predicted_vote_label"] = df["predicted_vote_class"].map(CLASS_LABELS)
+    df["predicted_risk_class"] = np.round(df["predicted_raw_score"])
+    df["predicted_risk_label"] = df["predicted_risk_class"].map(CLASS_LABELS)
     return df
 
 
 def export_predictions_to_pickle(predictions_df: pd.DataFrame, output_path: Path) -> None:
     df_to_pickle = predictions_df.assign(id=predictions_df.index)[
-        ["id", "user_id", "predicted_vote_label", "predicted_vote_class"]
+        ["id", "user_id", "predicted_risk_label", "predicted_risk_class"]
     ].to_dict(orient="records")
     with open(output_path, "wb") as f:
         pickle.dump(df_to_pickle, f)
     logger.info(f"Exported prediction results to {output_path} as pickle")
 
 
-def request_create_inferences(predict_file_path: Path, total_votes: int) -> None:
+def request_create_inferences(predict_file_path: Path, total_inferences: int) -> None:
     headers = {
         "Authorization": f"Token {AUTHORIZATION}",
     }
@@ -124,11 +124,11 @@ def request_create_inferences(predict_file_path: Path, total_votes: int) -> None
 
     if response.status_code // 100 == 2:
         if resp_json and "imported" in resp_json:
-            if resp_json["imported"] == total_votes:
-                logger.info(f"Successfully created inferences for {total_votes} votes.")
+            if resp_json["imported"] == total_inferences:
+                logger.info(f"Successfully created {total_inferences} inferences.")
             else:
                 logger.warning(
-                    f"Created inferences for {resp_json['imported']} votes, expected {total_votes} votes.",
+                    f"Created {resp_json['imported']} inferences, expected {total_inferences} inferences.",
                 )
         else:
             logger.info(f"Response from API: {response.status_code} - {response.text}")
@@ -136,9 +136,9 @@ def request_create_inferences(predict_file_path: Path, total_votes: int) -> None
         logger.error(f"API error response: {response.status_code} - {response.text}")
 
 
-def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: DataStore):
-    logger.info(f"Processing files:\n- Votes: {vote_fp}\n- Features: {features_fp}")
-    class_df = load_combined_data(vote_fp, features_fp, datastore)
+def process_prediction_pipeline(assessment_fp: Path, features_fp: Path, datastore: DataStore):
+    logger.info(f"Processing files:\n- Assessments: {assessment_fp}\n- Features: {features_fp}")
+    class_df = load_combined_data(assessment_fp, features_fp, datastore)
     unique_users = class_df["user_id"].dropna().unique()
     if len(unique_users) != 1:
         error_message = (
@@ -149,7 +149,7 @@ def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: Dat
     user_id = int(unique_users[0])
     class_df = class_df.drop(columns=["user_id"])
     training_df = prepare_training_data(class_df)
-    columns_to_exclude = ["id", "fid", "ranking", "vote_class", "vote_num"]
+    columns_to_exclude = ["id", "fid", "ranking", "risk_class", "risk_num"]
     feature_columns = [col for col in training_df.columns if col not in columns_to_exclude]
     model = train_model(training_df[feature_columns], training_df[TARGET_COLUMN])
     prediction_df = prepare_prediction_data(class_df)
@@ -160,13 +160,13 @@ def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: Dat
     predict_file = PREDICT_DIR / f"user2data_{user_id}_{timestamp}.pkl"
     export_predictions_to_pickle(prediction_result, predict_file)
 
-    total_votes = len(prediction_result)
-    request_create_inferences(predict_file, total_votes)
+    total_inferences = len(prediction_result)
+    request_create_inferences(predict_file, total_inferences)
 
-    if vote_fp.exists():
-        vote_fp.unlink()
+    if assessment_fp.exists():
+        assessment_fp.unlink()
     else:
-        logger.warning(f"Vote file {vote_fp} was missing during cleanup.")
+        logger.warning(f"Assessment file {assessment_fp} was missing during cleanup.")
 
     if features_fp.exists():
         features_fp.unlink()
@@ -176,20 +176,20 @@ def process_prediction_pipeline(vote_fp: Path, features_fp: Path, datastore: Dat
 
 
 def handle_event(event, datastore):
-    vote_fp = Path(event.src_path)
-    if vote_fp.suffix != ".pkl":
-        logger.debug(f"Ignoring non-pkl file in votes directory: {vote_fp}")
+    assessment_fp = Path(event.src_path)
+    if assessment_fp.suffix != ".pkl":
+        logger.debug(f"Ignoring non-pkl file in assessment directory: {assessment_fp}")
         return
-    logger.info(f"Detected new vote file: {vote_fp.name}")
-    match = re.search(r"([^_]+)_(\d{8}_\d{6})_votes\.pkl", vote_fp.name)
+    logger.info(f"Detected new assessment file: {assessment_fp.name}")
+    match = re.search(r"([^_]+)_(\d{8}_\d{6})_assessments\.pkl", assessment_fp.name)
     if not match:
-        logger.warning(f"Filename does not match expected pattern: {vote_fp.name}")
+        logger.warning(f"Filename does not match expected pattern: {assessment_fp.name}")
         return
     user_id = match.group(1)
     timestamp = match.group(2)
     features_fp = FEATURES_DIR / f"{user_id}_{timestamp}_features.pkl"
     if features_fp.exists():
-        process_prediction_pipeline(vote_fp, features_fp, datastore)
+        process_prediction_pipeline(assessment_fp, features_fp, datastore)
     else:
         logger.warning(f"Features file not found: {features_fp}")
 
@@ -209,7 +209,7 @@ def main():
     ram_used_mb = mem_info.rss / (1024 * 1024)  # Convert bytes to MB
     logger.info(f"RAM usage after loading DataStore: {ram_used_mb:.2f} MB")
 
-    logger.info(f"Watching directory: {VOTES_DIR}")
+    logger.info(f"Watching directory: {ASSESSMENT_DIR}")
     observer = Observer()
 
     def on_created(event):
@@ -217,7 +217,7 @@ def main():
 
     event_handler = FileSystemEventHandler()
     event_handler.on_created = on_created
-    observer.schedule(event_handler, str(VOTES_DIR), recursive=False)
+    observer.schedule(event_handler, str(ASSESSMENT_DIR), recursive=False)
     observer.start()
 
     signal.signal(signal.SIGINT, handle_shutdown)

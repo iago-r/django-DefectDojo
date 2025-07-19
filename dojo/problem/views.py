@@ -12,7 +12,7 @@ from dojo.models import Dojo_Group, Finding, Global_Role, Product
 from dojo.problem.helper import RISK_LABELS
 from dojo.problem.redis import SEVERITY_ORDER, dict_problems_findings
 from dojo.utils import add_breadcrumb
-from polls_plugin.utils import get_model_inference_votes, get_user_votes
+from risk_plugin.utils import get_model_inferences, get_user_assessments
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class ListProblems(View):
     def get_template(self):
         return "dojo/problems_list.html"
 
-    def order_field(self, request: HttpRequest, problems_findings_list, user_votes=None, model_votes=None):
+    def order_field(self, request: HttpRequest, problems_findings_list, user_assessments=None, model_inferences=None):
         order_field = request.GET.get("o")
         if order_field:
             reverse_order = order_field.startswith("-")
@@ -40,12 +40,12 @@ class ListProblems(View):
             elif order_field == "total_script_ids":
                 problems_findings_list = sorted(problems_findings_list, key=lambda x: len(x.script_ids), reverse=reverse_order)
             elif order_field == "risk":
-                user_votes = user_votes or {}
-                model_votes = model_votes or {}
+                user_assessments = user_assessments or {}
+                model_inferences = model_inferences or {}
                 problems_findings_list = sorted(
                     problems_findings_list,
                     key=lambda x: RISK_LABELS.get(
-                        user_votes.get(str(x.id), model_votes.get(str(x.id), "NA")),
+                        user_assessments.get(str(x.id), model_inferences.get(str(x.id), "NA")),
                         0,
                     ),
                     reverse=reverse_order,
@@ -194,12 +194,12 @@ class ProblemFindings(ListProblems):
         if severity_filter:
             findings = findings.filter(severity__in=severity_filter)
         if risk_filter:
-            self.user_votes = self.user_votes or {}
-            self.model_votes = self.model_votes or {}
+            self.user_assessments = self.user_assessments or {}
+            self.model_inferences = self.model_inferences or {}
             findings = findings.filter(
                 id__in=[
                     fid for fid in findings.values_list("id", flat=True)
-                    if self.user_votes.get(str(fid), self.model_votes.get(str(fid), "NA")) in risk_filter
+                    if self.user_assessments.get(str(fid), self.model_inferences.get(str(fid), "NA")) in risk_filter
                 ],
             )
         if script_id_filter:
@@ -237,8 +237,8 @@ class ProblemFindings(ListProblems):
             Q(members=request.user) | Q(authorization_groups__in=user_groups),
         ).distinct()
         self.problems_map = self.get_problems_map()
-        self.user_votes = get_user_votes(request.user.id)
-        self.model_votes = get_model_inference_votes(request.user.id)
+        self.user_assessments = get_user_assessments(request.user.id)
+        self.model_inferences = get_model_inferences(request.user.id)
         if request.user.is_superuser or (global_role and global_role.role):
             problem_name, findings = self.get_findings(request)
             paginated_findings = self.paginate_queryset(findings, request)
@@ -253,8 +253,8 @@ class ProblemFindings(ListProblems):
             "filtered": ProblemFindingFilter(request.GET),
             "problem_id": self.problem_id,
             "findings": paginated_findings,
-            "user_votes": self.user_votes,
-            "model_votes": self.model_votes,
+            "user_assessments": self.user_assessments,
+            "model_inferences": self.model_inferences,
             "bulk_edit_form": FindingBulkUpdateForm(request.GET),
         }
 

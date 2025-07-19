@@ -13,23 +13,23 @@ from django.views.decorators.http import require_GET
 
 from dojo.models import Finding
 
-from .models import Vote
+from .models import Risk
 
 logger = logging.getLogger(__name__)
 
 WORKDIR = Path(os.getenv("CRIVO_STORAGE_PATH"))
-VOTES_WORKDIR = WORKDIR / "model/user_votes"
+ASSESSMENTS_WORKDIR = WORKDIR / "model/user_assessments"
 FEATURES_WORKDIR = WORKDIR / "model/finding_features"
 
-if not VOTES_WORKDIR.exists():
-    VOTES_WORKDIR.mkdir(parents=True)
+if not ASSESSMENTS_WORKDIR.exists():
+    ASSESSMENTS_WORKDIR.mkdir(parents=True)
 
 if not FEATURES_WORKDIR.exists():
     FEATURES_WORKDIR.mkdir(parents=True)
 
 
 @login_required
-def save_user_vote(request):
+def save_user_assessment(request):
     logger.debug("Received a request.")
 
     if request.method != "POST":
@@ -41,33 +41,33 @@ def save_user_vote(request):
         logger.debug(f"Request body data: {data}")
 
         finding_id = int(data.get("finding_id"))
-        vote_value = data.get("vote")
-        vote_type = data.get("vote_type")
+        risk_value = data.get("risk")
+        risk_type = data.get("risk_type")
 
-        if vote_type == "class" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_CLASS]:
-            logger.error("Invalid vote value for class.")
-            return JsonResponse({"error": "Invalid Vote"}, status=400)
-        if vote_type == "num" and vote_value not in [choice[0] for choice in Vote.VOTE_CHOICES_NUM]:
-            logger.error("Invalid vote value for num.")
-            return JsonResponse({"error": "Invalid Vote"}, status=400)
+        if risk_type == "class" and risk_value not in [choice[0] for choice in Risk.RISK_CHOICES_CLASS]:
+            logger.error("Invalid risk value for class.")
+            return JsonResponse({"error": "Invalid Risk"}, status=400)
+        if risk_type == "num" and risk_value not in [choice[0] for choice in Risk.RISK_CHOICES_NUM]:
+            logger.error("Invalid risk value for num.")
+            return JsonResponse({"error": "Invalid Risk"}, status=400)
 
-        vote_kwargs = {
+        risk_kwargs = {
             "user_id": request.user.id,
             "finding_id": finding_id,
             "timestamp": now(),
         }
 
-        if vote_type == "class":
-            vote_kwargs["vote_class"] = vote_value
-        elif vote_type == "num":
-            vote_kwargs["vote_num"] = vote_value
+        if risk_type == "class":
+            risk_kwargs["risk_class"] = risk_value
+        elif risk_type == "num":
+            risk_kwargs["risk_num"] = risk_value
 
-        Vote.objects.create(**vote_kwargs)
+        Risk.objects.create(**risk_kwargs)
 
-        return JsonResponse({"message": "Vote Saved"})
+        return JsonResponse({"message": "Risk Saved"})
 
     except (ValueError, TypeError, json.JSONDecodeError) as e:
-        logger.error(f"Error while processing the vote: {e}")
+        logger.error(f"Error while processing the Risk: {e}")
         return JsonResponse({"error": "Invalid Data"}, status=400)
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
@@ -76,10 +76,10 @@ def save_user_vote(request):
 
 @require_GET
 @login_required
-def update_risks(request):
+def update_inferences(request):
     user_id = request.user.id
 
-    latest_timestamps = Vote.objects.filter(
+    latest_timestamps = Risk.objects.filter(
         user_id=user_id,
         is_model_inference=False,
         finding_id=OuterRef("finding_id"),
@@ -87,23 +87,23 @@ def update_risks(request):
         max_timestamp=Max("timestamp"),
     ).values("max_timestamp")
 
-    latest_votes = Vote.objects.filter(
+    latest_assessments = Risk.objects.filter(
         user_id=user_id,
         is_model_inference=False,
         timestamp=Subquery(latest_timestamps),
     )
 
-    votes_data = [
+    assessments_data = [
         {
-            "id": vote.finding_id,
-            "user_id": vote.user_id,
-            "vote_class": vote.vote_class,
-            "timestamp": vote.timestamp.isoformat(),
+            "id": assessment.finding_id,
+            "user_id": assessment.user_id,
+            "risk_class": assessment.risk_class,
+            "timestamp": assessment.timestamp.isoformat(),
         }
-        for vote in latest_votes
+        for assessment in latest_assessments
     ]
-    if not votes_data:
-        return JsonResponse({"message": "No votes found. Not updating model."})
+    if not assessments_data:
+        return JsonResponse({"message": "No assessments found. Not updating model."})
     findings_data = []
     for finding in Finding.objects.all():
         findings_data.append(
@@ -127,8 +127,8 @@ def update_risks(request):
     features_file_path = FEATURES_WORKDIR / f"{request.user.id}_{timestamp}_features.pkl"
     with open(features_file_path, "wb") as f:
         pickle.dump(findings_data, f)
-    vote_file_path = VOTES_WORKDIR / f"{request.user.id}_{timestamp}_votes.pkl"
-    with open(vote_file_path, "wb") as f:
-        pickle.dump(votes_data, f)
+    assessments_file_path = ASSESSMENTS_WORKDIR / f"{request.user.id}_{timestamp}_assessments.pkl"
+    with open(assessments_file_path, "wb") as f:
+        pickle.dump(assessments_data, f)
 
     return JsonResponse({"message": "Retraining Model"})
