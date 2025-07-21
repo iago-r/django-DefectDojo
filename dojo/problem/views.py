@@ -17,6 +17,18 @@ from risk_plugin.utils import get_model_inferences, get_user_assessments
 logger = logging.getLogger(__name__)
 
 
+def paginate_queryset(queryset, request: HttpRequest):
+    page_size = request.GET.get("page_size", 25)  # Default is 25
+    paginator = Paginator(queryset, page_size)
+    page_number = request.GET.get("page")
+    return paginator.get_page(page_number)
+
+
+def get_problems_map():
+    problems_map, _ = dict_problems_findings()
+    return problems_map
+
+
 class ListProblems(View):
     filter_name = "All"
 
@@ -31,25 +43,10 @@ class ListProblems(View):
                 order_field = order_field[1:]
             if order_field == "name":
                 problems_findings_list = sorted(problems_findings_list, key=lambda x: x.name, reverse=reverse_order)
-            elif order_field == "title":
-                problems_findings_list = sorted(problems_findings_list, key=lambda x: x.title, reverse=reverse_order)
-            elif order_field == "found_by":
-                problems_findings_list = sorted(problems_findings_list, key=lambda x: x.found_by.count(), reverse=reverse_order)
             elif order_field == "findings_count":
                 problems_findings_list = sorted(problems_findings_list, key=lambda x: len(x.finding_ids), reverse=reverse_order)
             elif order_field == "total_script_ids":
                 problems_findings_list = sorted(problems_findings_list, key=lambda x: len(x.script_ids), reverse=reverse_order)
-            elif order_field == "risk":
-                user_assessments = user_assessments or {}
-                model_inferences = model_inferences or {}
-                problems_findings_list = sorted(
-                    problems_findings_list,
-                    key=lambda x: RISK_LABELS.get(
-                        user_assessments.get(str(x.id), model_inferences.get(str(x.id), "NA")),
-                        0,
-                    ),
-                    reverse=reverse_order,
-                )
 
         return problems_findings_list
 
@@ -85,10 +82,6 @@ class ListProblems(View):
             add_problem = False
         return add_problem
 
-    def get_problems_map(self):
-        problems_map, _ = dict_problems_findings()
-        return problems_map
-
     def get_findings(self, products):
         problem_fids = {
             fid for problem in self.problems_map.values() for fid in problem.finding_ids
@@ -112,27 +105,18 @@ class ListProblems(View):
                 list_problem.append(problem)
         return self.order_field(request, list_problem)
 
-    def paginate_queryset(self, queryset, request: HttpRequest):
-        page_size = request.GET.get("page_size", 25)  # Default is 25
-        paginator = Paginator(queryset, page_size)
-        page_number = request.GET.get("page")
-        return paginator.get_page(page_number)
-
     def get(self, request: HttpRequest):
         global_role = Global_Role.objects.filter(user=request.user).first()
         user_groups = Dojo_Group.objects.filter(users=request.user)
         products = Product.objects.filter(
             Q(members=request.user) | Q(authorization_groups__in=user_groups),
         ).distinct()
-        self.problems_map = self.get_problems_map()
+        self.problems_map = get_problems_map()
         if request.user.is_superuser or (global_role and global_role.role):
             problems = self.get_problems(request)
-            paginated_problems = self.paginate_queryset(problems, request)
         elif products.exists():
             problems = self.get_problems(request, products)
-            paginated_problems = self.paginate_queryset(problems, request)
-        else:
-            paginated_problems = None
+        paginated_problems = paginate_queryset(problems, request)
 
         context = {
             "filter_name": self.filter_name,
@@ -172,9 +156,33 @@ class ListClosedProblems(ListProblems):
         return self.order_field(request, list_problem)
 
 
-class ProblemFindings(ListProblems):
+class ProblemFindings(View):
     def get_template(self):
         return "dojo/problem_findings.html"
+
+    def order_field(self, request: HttpRequest, problems_findings_list, user_assessments=None, model_inferences=None):
+        order_field = request.GET.get("o")
+        if order_field:
+            reverse_order = order_field.startswith("-")
+            if reverse_order:
+                order_field = order_field[1:]
+            if order_field == "title":
+                problems_findings_list = sorted(problems_findings_list, key=lambda x: x.title, reverse=reverse_order)
+            elif order_field == "found_by":
+                problems_findings_list = sorted(problems_findings_list, key=lambda x: x.found_by.count(), reverse=reverse_order)
+            elif order_field == "risk":
+                user_assessments = user_assessments or {}
+                model_inferences = model_inferences or {}
+                problems_findings_list = sorted(
+                    problems_findings_list,
+                    key=lambda x: RISK_LABELS.get(
+                        user_assessments.get(str(x.id), model_inferences.get(str(x.id), "NA")),
+                        0,
+                    ),
+                    reverse=reverse_order,
+                )
+
+        return problems_findings_list
 
     def filters(self, request: HttpRequest):
         name_filter = request.GET.get("name", "").lower()
@@ -189,29 +197,32 @@ class ProblemFindings(ListProblems):
 
     def filter_findings(self, findings, request: HttpRequest):
         name_filter, severity_filter, risk_filter, script_id_filter, reporter_filter, status_filter, engagement_filter, product_filter = self.filters(request)
+        filter_kwargs = {}
         if name_filter:
-            findings = findings.filter(title__icontains=name_filter)
+            filter_kwargs["title__icontains"] = name_filter
         if severity_filter:
-            findings = findings.filter(severity__in=severity_filter)
+            filter_kwargs["severity__in"] = severity_filter
+        if script_id_filter:
+            filter_kwargs["vuln_id_from_tool__icontains"] = script_id_filter
+        if reporter_filter:
+            filter_kwargs["reporter__id__in"] = reporter_filter
+        if status_filter:
+            filter_kwargs["active"] = (status_filter == "Yes")
+        if engagement_filter:
+            filter_kwargs["test__engagement__id__in"] = engagement_filter
+        if product_filter:
+            filter_kwargs["test__engagement__product__id__in"] = product_filter
+        findings = findings.filter(**filter_kwargs)
+
         if risk_filter:
             self.user_assessments = self.user_assessments or {}
             self.model_inferences = self.model_inferences or {}
-            findings = findings.filter(
-                id__in=[
-                    fid for fid in findings.values_list("id", flat=True)
-                    if self.user_assessments.get(str(fid), self.model_inferences.get(str(fid), "NA")) in risk_filter
-                ],
-            )
-        if script_id_filter:
-            findings = findings.filter(vuln_id_from_tool__icontains=script_id_filter)
-        if reporter_filter:
-            findings = findings.filter(reporter__id__in=reporter_filter)
-        if status_filter:
-            findings = findings.filter(active=status_filter == "Yes")
-        if engagement_filter:
-            findings = findings.filter(test__engagement__id__in=engagement_filter)
-        if product_filter:
-            findings = findings.filter(test__engagement__product__id__in=product_filter)
+            valid_ids = [
+                fid for fid in findings.values_list("id", flat=True)
+                if self.user_assessments.get(str(fid), self.model_inferences.get(str(fid), "NA")) in risk_filter
+            ]
+            findings = findings.filter(id__in=valid_ids)
+
         return findings
 
     def get_findings(self, request: HttpRequest, products=None):
@@ -236,17 +247,16 @@ class ProblemFindings(ListProblems):
         products = Product.objects.filter(
             Q(members=request.user) | Q(authorization_groups__in=user_groups),
         ).distinct()
-        self.problems_map = self.get_problems_map()
+        self.problems_map = get_problems_map()
         self.user_assessments = get_user_assessments(request.user.id)
         self.model_inferences = get_model_inferences(request.user.id)
         if request.user.is_superuser or (global_role and global_role.role):
             problem_name, findings = self.get_findings(request)
-            paginated_findings = self.paginate_queryset(findings, request)
         elif products.exists():
             problem_name, findings = self.get_findings(request, products)
-            paginated_findings = self.paginate_queryset(findings, request)
         else:
-            problem_name, paginated_findings = None, None
+            problem_name = None
+        paginated_findings = paginate_queryset(findings, request)
 
         context = {
             "problem": problem_name,

@@ -3,6 +3,7 @@ import pickle
 import re
 import signal
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import dojolib
@@ -199,6 +200,18 @@ def handle_shutdown(signum, frame):
     shutdown_flag = True
 
 
+@contextmanager
+def managed_observer(observer):
+    observer.start()
+    try:
+        yield observer
+    finally:
+        logger.info("Stopping observer...")
+        observer.stop()
+        observer.join()
+        logger.info("Shutdown complete.")
+
+
 def main():
     logger.info("Loading datastore...")
     datastore = DataStore()
@@ -218,22 +231,16 @@ def main():
     event_handler = FileSystemEventHandler()
     event_handler.on_created = on_created
     observer.schedule(event_handler, str(ASSESSMENT_DIR), recursive=False)
-    observer.start()
 
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
-    try:
+    with managed_observer(observer):
         if hasattr(signal, "pause"):
             while not shutdown_flag:
                 signal.pause()
         else:
             while not shutdown_flag:
-                time.sleep(1)
-    finally:
-        logger.info("Stopping observer...")
-        observer.stop()
-        observer.join()
-        logger.info("Shutdown complete.")
+                time.sleep(3600)
 
 
 if __name__ == "__main__":
