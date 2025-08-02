@@ -1,16 +1,17 @@
 import logging
 
 from django.core.paginator import Paginator
-from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import render
 from django.views import View
 
+from dojo.authorization.roles_permissions import Permissions
 from dojo.filters import ProblemFilter, ProblemFindingFilter
 from dojo.forms import FindingBulkUpdateForm
-from dojo.models import Dojo_Group, Finding, Global_Role, Product
+from dojo.models import Finding, Global_Role
 from dojo.problem.helper import RISK_LABELS
 from dojo.problem.redis import SEVERITY_ORDER, dict_problems_findings
+from dojo.product.queries import get_authorized_products
 from dojo.utils import add_breadcrumb
 from risk_plugin.utils import get_model_inferences, get_user_assessments
 
@@ -107,10 +108,7 @@ class ListProblems(View):
 
     def get(self, request: HttpRequest):
         global_role = Global_Role.objects.filter(user=request.user).first()
-        user_groups = Dojo_Group.objects.filter(users=request.user)
-        products = Product.objects.filter(
-            Q(members=request.user) | Q(authorization_groups__in=user_groups),
-        ).distinct()
+        products = get_authorized_products(Permissions.Product_View)
         self.problems_map = get_problems_map()
         if request.user.is_superuser or (global_role and global_role.role):
             problems = self.get_problems(request)
@@ -243,10 +241,7 @@ class ProblemFindings(View):
     def get(self, request: HttpRequest, problem_id: int):
         self.problem_id = problem_id
         global_role = Global_Role.objects.filter(user=request.user).first()
-        user_groups = Dojo_Group.objects.filter(users=request.user)
-        products = Product.objects.filter(
-            Q(members=request.user) | Q(authorization_groups__in=user_groups),
-        ).distinct()
+        products = get_authorized_products(Permissions.Product_View)
         self.problems_map = get_problems_map()
         self.user_assessments = get_user_assessments(request.user.id)
         self.model_inferences = get_model_inferences(request.user.id)
