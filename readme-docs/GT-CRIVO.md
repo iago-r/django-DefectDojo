@@ -20,8 +20,9 @@ docker compose -f docker-compose.yml -f docker-compose-crivo.yml run --rm crivo-
 # Launch the containers, pass the `-d` parameter if you want to detach
 # container output from the terminal:
 docker compose up -d
-# After accessing the admin dashboard, go to the URL `/api/key-v2` and copy your API key.
-# Place the API key in `docker-compose-crivo.yml` under `TOKEN_API_KEY` in the `crivo-model` container.
+# The initializer container automatically creates the admin user and generates the API token.
+# The initializer can take up to 3 minutes to run.
+# This token is saved in a api-token.env file inside CRIVO_STORAGE_PATH (default: /app/crivo-metadata) volume.
 # Now you can start the `crivo-model` container.
 cd crivo-model
 ./build.sh

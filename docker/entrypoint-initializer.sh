@@ -163,3 +163,19 @@ then
   create_announcement_banner
   initialize_data
 fi
+
+echo $CRIVO_STORAGE_PATH
+mkdir -p "$CRIVO_STORAGE_PATH"
+cat <<EOD | python manage.py shell
+import os
+from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
+crivo_path = os.getenv('CRIVO_STORAGE_PATH', '/app/crivo-metadata')
+user = User.objects.get(username=os.getenv('DD_ADMIN_USER'))
+if not user:
+    print("Admin user not found. Exiting.")
+    exit(1)
+token, created = Token.objects.get_or_create(user=user)
+with open(os.path.join(crivo_path, "api-token.env"), "w") as f:
+    f.write(f"TOKEN_API_KEY={token.key}\\n")
+EOD

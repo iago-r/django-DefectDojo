@@ -3211,6 +3211,14 @@ class RiskTriggerViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
     def create(self, request):
+        # Triggered by a model container after a user requests predictions for unrated findings.
+        # The model uses the user's past assessments to generate new predictions, saves them to a pickle file,
+        # and sends this path via an authenticated API request (with the user's token) to this endpoint.
+        #
+        # This view is protected by IsAuthenticated, ensuring only valid users or services can call it.
+        # It validates and imports the predictions, ensures they belong to a single user, notifies them,
+        # and deletes the file after processing.
+
         path_new_inferences = request.data.get("inferences", "")
 
         if not Path(path_new_inferences).is_file():

@@ -1,9 +1,20 @@
 import os
 from pathlib import Path
 
-AUTHORIZATION = os.getenv("TOKEN_API_KEY")
+
+def load_token_from_envfile(env_path):
+    if not env_path.exists():
+        return ""
+    with env_path.open() as f:
+        for line in f:
+            if line.startswith("TOKEN_API_KEY="):
+                return line.strip().split("=", 1)[1]
+    return ""
+
 
 WORKDIR = Path(os.getenv("CRIVO_STORAGE_PATH"))
+TOKEN_FILE = WORKDIR / "api-token.env"
+AUTHORIZATION = load_token_from_envfile(TOKEN_FILE)
 CVE2META_PICKLE_FP = WORKDIR / "cve-metadata/cve2meta.pkl.gz"
 PREDICT_DIR = WORKDIR / "model/predict_inferences"
 URL_API = "http://nginx:8080/api/v2/risk_triggers/"
