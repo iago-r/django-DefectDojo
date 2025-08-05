@@ -122,7 +122,15 @@ services:
     # Pinning to this version due to licensing constraints
     image: redis:7.2.5-alpine@sha256:6aaf3f5e6bc8a592fbfe2cccf19eb36d27c39d12dab4f4b01556b7449e7b1f44
     volumes:
-      - defectdojo_redis:/data
+      - defectdojo_redis:/data  
+  crivo-model:
+    build: ./crivo-model
+    depends_on:
+      - initializer
+    volumes:
+      - defectdojo_crivo:/app/crivo-metadata:rw
+    environment:
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
 volumes:
   defectdojo_postgres: {}
   defectdojo_media: {}

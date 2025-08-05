@@ -61,9 +61,3 @@ services:
     environment:
       CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
 
-  crivo-model:
-    build: ./crivo-model
-    volumes:
-      - defectdojo_crivo:/app/crivo-metadata:rw
-    environment:
-      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"

@@ -20,13 +20,6 @@ docker compose -f docker-compose.yml -f docker-compose-crivo.yml run --rm crivo-
 # Launch the containers, pass the `-d` parameter if you want to detach
 # container output from the terminal:
 docker compose up -d
-# The initializer container automatically creates the admin user and generates the API token.
-# The initializer can take up to 3 minutes to run.
-# This token is saved in a api-token.env file inside CRIVO_STORAGE_PATH (default: /app/crivo-metadata) volume.
-# Now you can start the `crivo-model` container.
-cd crivo-model
-./build.sh
-docker compose -f ../docker-compose.yml -f ../docker-compose-crivo.yml up -d crivo-model
 ```
 
 You will immediately get the aggregation of identical `Finding`s into `Problem`s and the ability to set the severity of each vulnerability.  CVE metadata, however, will only be available for new OpenVAS XML imports; this is because imports made without GT-CRIVO's modifications do not store CVE information reported by OpenVAS.

@@ -13,10 +13,10 @@ import psutil
 import requests
 from datastore import DataStore
 from settings import (
-    AUTHORIZATION,
     CVE2META_PICKLE_FP,
     PREDICT_DIR,
     TARGET_COLUMN,
+    TOKEN_FILE,
     URL_API,
     WORKDIR,
     XGBOOST_LEARNING_RATE,
@@ -40,6 +40,15 @@ ASSESSMENT_DIR = WORKDIR / "model/user_assessments"
 FEATURES_DIR = WORKDIR / "model/finding_features"
 CLASS_LABELS = {v: k for k, v in dojolib.DojoRanking.CLASS_MAP.items() if v is not None}
 
+
+def load_token_from_envfile(env_path):
+    if not env_path.exists():
+        return ""
+    with env_path.open() as f:
+        for line in f:
+            if line.startswith("TOKEN_API_KEY="):
+                return line.strip().split("=", 1)[1]
+    return ""
 
 def load_combined_data(assessment_fp: Path, features_fp: Path, datastore: DataStore) -> pd.DataFrame:
     class_features, class_rankings = dojolib.load_features_rankings(features_fp, assessment_fp, datastore)
@@ -99,8 +108,13 @@ def export_predictions_to_pickle(predictions_df: pd.DataFrame, output_path: Path
 
 
 def request_create_inferences(predict_file_path: Path, total_inferences: int) -> None:
+    authorization = load_token_from_envfile(TOKEN_FILE)
+    if authorization is None:
+        logger.error("AUTHORIZATION token is not set. Cannot make API request.")
+        return
+
     headers = {
-        "Authorization": f"Token {AUTHORIZATION}",
+        "Authorization": f"Token {authorization}",
     }
     payload = {
         "inferences": str(predict_file_path),
