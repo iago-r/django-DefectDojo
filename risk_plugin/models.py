@@ -1,8 +1,8 @@
 from django.db import models
 
 
-class Vote(models.Model):
-    VOTE_CHOICES_CLASS = [
+class Risk(models.Model):
+    RISK_CHOICES_CLASS = [
         ("NA", "NA"),  # not available
         ("Mild", "Mild"),
         ("Moderate", "Moderate"),
@@ -10,7 +10,7 @@ class Vote(models.Model):
         ("Critical", "Critical"),
     ]
 
-    VOTE_CHOICES_NUM = [
+    RISK_CHOICES_NUM = [
         ("NV", "NV"),  # no value
         ("0", "0"),
         ("1", "1"),
@@ -26,13 +26,14 @@ class Vote(models.Model):
     ]
 
     finding_id = models.IntegerField()
-    user_id = models.IntegerField()
-    vote_class = models.CharField(max_length=10, choices=VOTE_CHOICES_CLASS)
-    vote_num = models.CharField(max_length=10, choices=VOTE_CHOICES_NUM)
+    user_id = models.IntegerField(null=True, blank=True)
+    risk_class = models.CharField(max_length=10, choices=RISK_CHOICES_CLASS)
+    risk_num = models.CharField(max_length=10, choices=RISK_CHOICES_NUM)
     timestamp = models.DateTimeField(auto_now_add=True)
+    is_model_inference = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "votes"
+        db_table = "risks"
         indexes = [
             models.Index(fields=["finding_id", "user_id"]),
         ]

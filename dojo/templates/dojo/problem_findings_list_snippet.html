@@ -4,7 +4,7 @@
 {% load get_endpoint_status %}
 {% load static %}
 {% load i18n %}
-{% load polls_filters %}
+{% load risk_filters %}
 {% block problem_findings %}
     <div class="row">
         <div class="col-md-12">
@@ -292,7 +292,7 @@
                                     <th class="nowrap centered severity-sort">
                                         {% trans "Severity" %}
                                     </th>
-                                    <th>{% trans "Risk" %}</th>
+                                    <th>{% dojo_sort request "Risk" "risk" %}</th>
                                     <th>{% trans "SLA" %}</th>
                                     <th>{% trans "Script ID" %}</th>
                                     <th>{% trans "Reporter" %}</th>
@@ -448,15 +448,20 @@
                                                 {{ finding.severity }}
                                             </span>
                                         </td>
-                                        <td>
-                                            <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
-                                                <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
-                                                <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
-                                                <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
-                                                <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
-                                                <option value="Critical" {% if user_votes|get_item:finding.id == "Critical" %}selected{% endif %}>Critical</option>
-                                            </select>
-                                        </td>
+                                        {% get_assessment user_assessments model_inferences finding.id as risk_tuple %}
+                                        {% with risk_value=risk_tuple.0 from_model=risk_tuple.1 %}
+                                            <td>
+                                                <select class="risk-dropdown"
+                                                data-finding-id="{{ finding.id }}"
+                                                data-style="{% if from_model %}fa-asterisk{% endif %}">
+                                                    <option value="NA" {% if risk_value == "NA" %}selected{% endif %}></option>
+                                                    <option value="Mild" {% if risk_value == "Mild" %}selected{% endif %}>Mild</option>
+                                                    <option value="Moderate" {% if risk_value == "Moderate" %}selected{% endif %}>Moderate</option>
+                                                    <option value="Severe" {% if risk_value == "Severe" %}selected{% endif %}>Severe</option>
+                                                    <option value="Critical" {% if risk_value == "Critical" %}selected{% endif %}>Critical</option>
+                                                </select>
+                                            </td>
+                                        {% endwith %}
                                         <td class="centered">
                                             {{ finding|finding_sla }}
                                         </td>
@@ -516,7 +521,7 @@
                     return type === 'export' ? getDojoExportValueFromTag(data, 'a') : data;
                 }},
                 { "data": "severity" },
-                { "data": "vote", "render": function(data, type, row, meta) {
+                { "data": "risk", "render": function(data, type, row, meta) {
                     var order = {
                         "NA": 0,
                         "Mild": 1,

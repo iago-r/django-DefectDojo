@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class PollsPluginConfig(AppConfig):
+class RiskPluginConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "polls_plugin"
+    name = "risk_plugin"

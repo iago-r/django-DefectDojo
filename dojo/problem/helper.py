@@ -9,6 +9,13 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 CACHED_JSON_DISAMBIGUATOR = Path("/app/crivo-metadata/disambiguator.json")
+RISK_LABELS = {
+    "NA": 0,
+    "Mild": 1,
+    "Moderate": 2,
+    "Severe": 3,
+    "Critical": 4,
+}
 
 
 def validate_json(data):

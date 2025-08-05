@@ -16,11 +16,11 @@ docker run --rm \
   -v $VOLUME:/volume \
   -v "$BACKUP:/backup" \
   busybox \
-  tar --exclude=findings_polls.db -czf /backup/backup-$DATE-novotes.tar.gz \
+  tar --exclude=findings_risk.db -czf /backup/backup-$DATE-norisk.tar.gz \
     -C /volume .
 
 docker run --rm \
   -v $VOLUME:/volume \
   -v "$BACKUP:/backup" \
   busybox \
-  cp /volume/findings_polls.db /backup/findings_polls.db
+  cp /volume/findings_risk.db /backup/findings_risk.db

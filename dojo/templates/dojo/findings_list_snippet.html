@@ -4,7 +4,7 @@
 {% load get_endpoint_status %}
 {% load static %}
 {% load i18n %}
-{% load polls_filters %}
+{% load risk_filters %}
 {% block findings_list %}
     <div class="row">
         <div class="col-md-12">
@@ -55,7 +55,19 @@
                 </div>
             </div>
             {% if findings %}
-                <div class="clearfix">{% include "dojo/paging_snippet.html" with page=findings page_size=True %}</div>
+                <div class="clearfix">
+                    {% include "dojo/paging_snippet.html" with page=findings page_size=True %}
+                    <div class="pull-left">
+                        <button id="update-risks-btn" class="btn btn-primary">Update Risks</button>
+                        <div>
+                            <div id="loading-spinner" style="display: none; margin-top: 8px;">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Updating...
+                            </div>
+                            <span id="update-status" style="display: block; margin-top: 8px;"></span>
+                        </div>
+                    </div>
+                </div>
                 {% if not product_tab or product_tab and product_tab.product|has_object_permission:"Finding_Edit" %}
                     <div class="dropdown hidden" style="padding-bottom: 5px;" id="bulk_edit_menu">
                         {% if not product_tab or product_tab and product_tab.product|has_object_permission:"Finding_Edit" %}
@@ -338,7 +350,7 @@
                                         {% trans "EPSS Percentile" %}
                                     </th>
                                     <th>
-                                        {% trans "Risk" %}
+                                        {% dojo_sort request 'Risk' 'risk' %}
                                     </th>
                                     <th class="nowrap">
                                         {% if filter_name == 'Closed' %}
@@ -622,15 +634,20 @@
                                         <td class="nowrap text-right">
                                             {{ finding.epss_percentile|format_epss }}
                                         </td>
-                                        <td>
-                                            <select class="vote-dropdown" data-finding-id="{{ finding.id }}">
-                                                <option value="NA" {% if user_votes|get_item:finding.id == "NA" %}selected{% endif %}></option>
-                                                <option value="Mild" {% if user_votes|get_item:finding.id == "Mild" %}selected{% endif %}>Mild</option>
-                                                <option value="Moderate" {% if user_votes|get_item:finding.id == "Moderate" %}selected{% endif %}>Moderate</option>
-                                                <option value="Severe" {% if user_votes|get_item:finding.id == "Severe" %}selected{% endif %}>Severe</option>
-                                                <option value="Critical" {% if user_votes|get_item:finding.id == "Critical" %}selected{% endif %}>Critical</option>
-                                            </select>
-                                        </td>
+                                        {% get_assessment user_assessments model_inferences finding.id as risk_tuple %}
+                                        {% with risk_value=risk_tuple.0 from_model=risk_tuple.1 %}
+                                            <td>
+                                                <select class="risk-dropdown"
+                                                data-finding-id="{{ finding.id }}"
+                                                data-style="{% if from_model %}fa-asterisk{% endif %}">
+                                                    <option value="NA" {% if risk_value == "NA" %}selected{% endif %}></option>
+                                                    <option value="Mild" {% if risk_value == "Mild" %}selected{% endif %}>Mild</option>
+                                                    <option value="Moderate" {% if risk_value == "Moderate" %}selected{% endif %}>Moderate</option>
+                                                    <option value="Severe" {% if risk_value == "Severe" %}selected{% endif %}>Severe</option>
+                                                    <option value="Critical" {% if risk_value == "Critical" %}selected{% endif %}>Critical</option>
+                                                </select>
+                                            </td>
+                                        {% endwith %}
                                         {% if filter_name == 'Closed' %}
                                         <td class="nowrap" data-order="{{ finding.mitigated|date:"U" }}">
                                             {{ finding.mitigated|date }}
@@ -778,7 +795,7 @@
                     { "data": "cve" },
                     { "data": "epss_score", "type": "num", "render": percentSort },
                     { "data": "epss_percentile", "type": "num", "render": percentSort },
-                    { "data": "vote", "render": function(data, type, row, meta) {
+                    { "data": "risk", "render": function(data, type, row, meta) {
                         var order = {
                             "NA": 0,
                             "Mild": 1,
@@ -872,7 +889,7 @@
             var columns = datatables_columns;
 
             // Filter the list of items to display based on what is shown.
-            var disallowed_entries = new Set(["checkbox", "action", "vote"]);
+            var disallowed_entries = new Set(["checkbox", "action", "risk"]);
             var data_column_list = [];
             for (var i = 0; i < columns.length; i++) {
                 if (!disallowed_entries.has(columns[i]["data"])) {
@@ -1187,6 +1204,34 @@
 
     </script>
     <script src="{% static 'dojo/js/crivo.js' %}"></script>
+    <script>
+        document.getElementById("update-risks-btn").addEventListener("click", function () {
+            const spinner = document.getElementById("loading-spinner");
+            const status = document.getElementById("update-status");
+    
+            spinner.style.display = "inline-block";
+            status.textContent = "";
+    
+            fetch("{% url 'update_inferences' %}", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                status.textContent = data.message || "Done!";
+            })
+            .catch(error => {
+                status.textContent = "Error updating risks.";
+                console.error("Error:", error);
+            })
+            .finally(() => {
+                spinner.style.display = "none";
+            });
+        });
+    </script>
     {% include "dojo/filter_js_snippet.html" %}
     {% include "dojo/snippets/selectpicker_in_dropdown.html" %}
 {% endblock %}

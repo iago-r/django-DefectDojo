@@ -1,8 +1,8 @@
 #!/bin/bash
 set -eu
 
-TARFILE=$(pwd)/backup-2025-05-07-novotes.tar.gz
-# https://www.dcc.ufmg.br/~cunha/hosted/crivo-metadata-d1a2c69c-1ebd-11f0-a0cf-a7cc2967d76b/backup-2025-05-07-novotes.tar.gz
+TARFILE=$(pwd)/backup-2025-05-07-norisk.tar.gz
+# https://www.dcc.ufmg.br/~cunha/hosted/crivo-metadata-d1a2c69c-1ebd-11f0-a0cf-a7cc2967d76b/backup-2025-05-07-norisk.tar.gz
 VOLUME=test_defectdojo_crivo
 
 if [[ "$TARFILE" != /* ]]; then

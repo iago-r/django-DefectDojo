@@ -121,8 +121,8 @@ RUN \
     chmod -R 775 /app/crivo-metadata && \
     chown -R ${appuser}:${appuser} /app/crivo-metadata
 
-# Configure the polls_plugin and dependencies
-COPY polls_plugin/ ./polls_plugin/
+# Configure the risk_plugin and dependencies
+COPY risk_plugin/ ./risk_plugin/
 RUN \
     apt-get -y update && \
     apt-get -y install --no-install-recommends sqlite3 && \

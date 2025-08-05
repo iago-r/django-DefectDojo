@@ -118,7 +118,7 @@ RUN \
     chmod -R 775 /app/crivo-metadata && \
     chown -R ${appuser}:${appuser} /app/crivo-metadata
 
-COPY polls_plugin/ ./polls_plugin/
+COPY risk_plugin/ ./risk_plugin/
 RUN \
     apk update && \
     apk add --no-cache sqlite

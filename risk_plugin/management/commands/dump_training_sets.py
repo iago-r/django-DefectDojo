@@ -7,48 +7,49 @@ from django.core.management.base import BaseCommand
 from django.db.models import Max
 
 from dojo.models import Finding
-from polls_plugin.models import Vote
+from risk_plugin.models import Risk
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
     help = """
-    Extract votes or finding data and save them in JSON or Pickle.\n\n
+    Extract assessments or finding data and save them in JSON or Pickle.\n\n
 
     Usage:\n
-      python manage.py dumpo_trainning_sets --data_type=<votes|features> --output_format=<json|pickle> [--filename=<filename>]\n
+      python manage.py dumpo_trainning_sets --data_type=<assessments|features> --output_format=<json|pickle> [--filename=<filename>]\n
 
     Options:\n
-      --data_type     Specify the type of data to extract: 'votes' or 'features'.\n
+      --data_type     Specify the type of data to extract: 'assessments' or 'features'.\n
       --output_format Specify the output format: 'json' or 'pickle'.\n
       --filename      Specify the output file name (default: 'output_data').\n\n
     """
 
-    def extract_votes(self):
-        """Extract the latest vote for each vulnerability (finding)."""
-        latest_votes = Vote.objects.values("finding_id", "user_id").annotate(latest_timestamp=Max("timestamp"))
+    def extract_assessments(self):
+        """Extract the latest assessment for each vulnerability (finding)."""
+        latest_assessments = Risk.objects.filter(is_model_inference=False).values("finding_id", "user_id").annotate(latest_timestamp=Max("timestamp"))
 
-        if latest_votes:
-            votes_data = []
-            for vote in latest_votes:
-                detailed_vote = Vote.objects.filter(
-                    finding_id=vote["finding_id"],
-                    user_id=vote["user_id"],
-                    timestamp=vote["latest_timestamp"],
+        if latest_assessments:
+            assessments_data = []
+            for assessment in latest_assessments:
+                detailed_assessment = Risk.objects.filter(
+                    finding_id=assessment["finding_id"],
+                    user_id=assessment["user_id"],
+                    timestamp=assessment["latest_timestamp"],
+                    is_model_inference=False,
                 ).first()
 
-                if detailed_vote:
-                    votes_data.append(
+                if detailed_assessment:
+                    assessments_data.append(
                         {
-                            "id": detailed_vote.finding_id,
-                            "user_id": detailed_vote.user_id,
-                            "vote_class": detailed_vote.vote_class,
-                            "timestamp": detailed_vote.timestamp.isoformat(),
+                            "id": detailed_assessment.finding_id,
+                            "user_id": detailed_assessment.user_id,
+                            "risk_class": detailed_assessment.risk_class,
+                            "timestamp": detailed_assessment.timestamp.isoformat(),
                         },
                     )
-            return votes_data
-        logger.info("No votes found.")
+            return assessments_data
+        logger.info("No assessments found.")
         return None
 
     def extract_features(self):
@@ -79,8 +80,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--data_type",
             type=str,
-            choices=["votes", "features"],
-            help="Specify the type of data to extract: 'votes' or 'features'.",
+            choices=["assessments", "features"],
+            help="Specify the type of data to extract: 'assessments' or 'features'.",
         )
         parser.add_argument(
             "--output_format",
@@ -106,15 +107,15 @@ class Command(BaseCommand):
         output_format = options["output_format"]
         filename = options["filename"]
 
-        if data_type == "votes":
-            logger.info("Extracting votes...")
-            votes_data = self.extract_votes()
-            if votes_data:
-                filename = f"{filename}_votes"
-                self.save_data(votes_data, output_format, filename)
-                logger.info("Votes data extracted successfully.")
+        if data_type == "assessments":
+            logger.info("Extracting assessments...")
+            assessments_data = self.extract_assessments()
+            if assessments_data:
+                filename = f"{filename}_assessments"
+                self.save_data(assessments_data, output_format, filename)
+                logger.info("Assessments data extracted successfully.")
             else:
-                logger.warning("No votes data found.")
+                logger.warning("No assessments data found.")
 
         elif data_type == "features":
             logger.info("Extracting features...")

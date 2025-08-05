@@ -60,3 +60,4 @@ services:
     restart: "no"
     environment:
       CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
+

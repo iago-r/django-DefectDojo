@@ -66,6 +66,7 @@ services:
       DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
       DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
       DD_DATABASE_READINESS_TIMEOUT: "${DD_DATABASE_READINESS_TIMEOUT:-30}"
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
     volumes:
         - type: bind
           source: ./docker/extra_settings
@@ -82,6 +83,7 @@ services:
       DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
       DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
       DD_DATABASE_READINESS_TIMEOUT: "${DD_DATABASE_READINESS_TIMEOUT:-30}"
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
     volumes:
         - type: bind
           source: ./docker/extra_settings
@@ -102,10 +104,12 @@ services:
       DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
       DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
       DD_DATABASE_READINESS_TIMEOUT: "${DD_DATABASE_READINESS_TIMEOUT:-30}"
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
     volumes:
         - type: bind
           source: ./docker/extra_settings
           target: /app/docker/extra_settings
+        - "defectdojo_crivo:/app/crivo-metadata"
   postgres:
     image: postgres:17.4-alpine@sha256:c4c3cded22488238ed0df51b82913b5d3b426fad19fbe205a711f05f5dba5c45
     environment:
@@ -118,7 +122,15 @@ services:
     # Pinning to this version due to licensing constraints
     image: redis:7.2.5-alpine@sha256:6aaf3f5e6bc8a592fbfe2cccf19eb36d27c39d12dab4f4b01556b7449e7b1f44
     volumes:
-      - defectdojo_redis:/data
+      - defectdojo_redis:/data  
+  crivo-model:
+    build: ./crivo-model
+    depends_on:
+      - initializer
+    volumes:
+      - defectdojo_crivo:/app/crivo-metadata:rw
+    environment:
+      CRIVO_STORAGE_PATH: "${CRIVO_BASEDIR:-/app/crivo-metadata}"
 volumes:
   defectdojo_postgres: {}
   defectdojo_media: {}

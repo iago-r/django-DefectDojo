@@ -22,18 +22,18 @@ PROBLEM_MAPPINGS_JSON_URL = f"file://{CRIVO_METADATA_DIR}/disambiguator.json"
 # A finding-to-problem mapping covering Nmap, OpenVAS and Nuclei is available from UFMG:
 # PROBLEM_MAPPINGS_JSON_URL = "https://pugna.snes.dcc.ufmg.br/defectdojo/disambiguator.json"
 
-# Polls Plugin
-INSTALLED_APPS += ("polls_plugin",)
+# Risk Plugin
+INSTALLED_APPS += ("risk_plugin",)
 
-DATABASES["polls"] = {
+DATABASES["risk"] = {
     "ENGINE": "django.db.backends.sqlite3",
-    "NAME": f"{CRIVO_METADATA_DIR}/findings_polls.db",
+    "NAME": f"{CRIVO_METADATA_DIR}/findings_risk.db",
 }
 
-DATABASE_ROUTERS = ["polls_plugin.router.PollsRouter"]
+DATABASE_ROUTERS = ["risk_plugin.router.RiskRouter"]
 
 try:
-    MIGRATION_MODULES.update({"polls_plugin": "polls_plugin.migrations"})
+    MIGRATION_MODULES.update({"risk_plugin": "risk_plugin.migrations"})
 except NameError:
     print("Error: MIGRATION_MODULES is not defined. Make sure it is defined before updating it.")
 
