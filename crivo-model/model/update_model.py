@@ -50,6 +50,7 @@ def load_token_from_envfile(env_path):
                 return line.strip().split("=", 1)[1]
     return ""
 
+
 def load_combined_data(assessment_fp: Path, features_fp: Path, datastore: DataStore) -> pd.DataFrame:
     class_features, class_rankings = dojolib.load_features_rankings(features_fp, assessment_fp, datastore)
     return dojolib.get_merged_df(class_features, class_rankings)
