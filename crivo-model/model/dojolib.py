@@ -4,14 +4,13 @@ import dataclasses
 import enum
 import pickle
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 import pandas as pd
 from settings import SEVERITY_LABELS
 
 if TYPE_CHECKING:
-    import pathlib
-
     import datastore
 
 
@@ -260,15 +259,15 @@ class MitigationType(enum.StrEnum):
 
 
 def load_features_rankings(
-    features_file: pathlib.Path,
-    risk_file: pathlib.Path,
+    features_file: Path,
+    risk_file: Path,
     ds: datastore.DataStore,
 ) -> tuple[list[DojoFindingFeatures], list[DojoRanking]]:
-    findings_raw: list[dict] = pickle.load(open(features_file, "rb"))
+    findings_raw: list[dict] = pickle.load(Path.open(features_file, "rb"))
     findings: list[DojoFinding] = [DojoFinding(**f) for f in findings_raw]
     features: list[DojoFindingFeatures] = [f.compute_features(ds) for f in findings]
 
-    rankings_raw: list[dict] = pickle.load(open(risk_file, "rb"))
+    rankings_raw: list[dict] = pickle.load(Path.open(risk_file, "rb"))
     rankings = [DojoRanking(**r) for r in rankings_raw]
 
     return features, rankings

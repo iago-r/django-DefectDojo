@@ -40,7 +40,7 @@ def download_json(json_url):
     if parsed_url.scheme == "file":
         logger.info("Loading disambiguator JSON from file %s", parsed_url.path)
         file_path = parsed_url.path
-        with open(file_path, encoding="utf-8") as file:
+        with Path.open(file_path, encoding="utf-8") as file:
             return json.load(file)
 
     return None
@@ -74,7 +74,7 @@ def mapping_script_problem_id(mappings_json_findings):
 
 def save_json_to_cache(data):
     logger.info("Saving disambiguator JSON to cache and updating problem cache.")
-    with open(CACHED_JSON_DISAMBIGUATOR, "w", encoding="utf-8") as f:
+    with Path.open(CACHED_JSON_DISAMBIGUATOR, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
 

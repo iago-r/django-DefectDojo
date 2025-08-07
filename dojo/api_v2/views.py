@@ -3211,7 +3211,7 @@ class RiskTriggerViewSet(viewsets.ViewSet):
             return Response({"error": "File not found."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            with open(path_new_inferences, "rb") as file:
+            with Path.open(path_new_inferences, "rb") as file:
                 data = pickle.load(file)
             user_ids = set()
             inferences = []

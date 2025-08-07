@@ -100,7 +100,7 @@ class ListProblems(View):
     def get_problems(self, request: HttpRequest, products=None):
         user_fids, _ = self.get_findings(products)
         list_problem = []
-        for _, problem in self.problems_map.items():
+        for problem in self.problems_map.values():
             problem.finding_ids = set(problem.finding_ids) & user_fids
             if self.filter_problem(problem, request):
                 list_problem.append(problem)
@@ -132,7 +132,7 @@ class ListOpenProblems(ListProblems):
     def get_problems(self, request: HttpRequest, products=None):
         user_fids, active_fids = self.get_findings(products)
         list_problem = []
-        for _, problem in self.problems_map.items():
+        for problem in self.problems_map.values():
             problem.finding_ids = set(problem.finding_ids) & user_fids
             if self.filter_problem(problem, request):
                 if problem.finding_ids & active_fids:
@@ -146,7 +146,7 @@ class ListClosedProblems(ListProblems):
     def get_problems(self, request: HttpRequest, products=None):
         user_fids, active_fids = self.get_findings(products)
         list_problem = []
-        for _, problem in self.problems_map.items():
+        for problem in self.problems_map.values():
             problem.finding_ids = set(problem.finding_ids) & user_fids
             if self.filter_problem(problem, request):
                 if not (problem.finding_ids & active_fids):

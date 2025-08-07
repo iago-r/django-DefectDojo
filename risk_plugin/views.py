@@ -104,31 +104,30 @@ def update_inferences(request):
     ]
     if not assessments_data:
         return JsonResponse({"message": "No assessments found. Not updating model."})
-    findings_data = []
-    for finding in Finding.objects.all():
-        findings_data.append(
-            {
-                "id": finding.id,
-                "title": finding.title,
-                "date": finding.date,
-                "description": finding.description,
-                "severity": finding.severity,
-                "vuln_id_from_tool": finding.vuln_id_from_tool,
-                "mitigation": finding.mitigation,
-                "epss_score": finding.epss_score,
-                "epss_percentile": finding.epss_percentile,
-                "cve": finding.cve,
-            },
-        )
+    findings_data = [
+        {
+            "id": finding.id,
+            "title": finding.title,
+            "date": finding.date,
+            "description": finding.description,
+            "severity": finding.severity,
+            "vuln_id_from_tool": finding.vuln_id_from_tool,
+            "mitigation": finding.mitigation,
+            "epss_score": finding.epss_score,
+            "epss_percentile": finding.epss_percentile,
+            "cve": finding.cve,
+        }
+        for finding in Finding.objects.all()
+    ]
     if not findings_data:
         return JsonResponse({"message": "No findings available. Not updating model."})
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     features_file_path = FEATURES_WORKDIR / f"{request.user.id}_{timestamp}_features.pkl"
-    with open(features_file_path, "wb") as f:
+    with Path.open(features_file_path, "wb") as f:
         pickle.dump(findings_data, f)
     assessments_file_path = ASSESSMENTS_WORKDIR / f"{request.user.id}_{timestamp}_assessments.pkl"
-    with open(assessments_file_path, "wb") as f:
+    with Path.open(assessments_file_path, "wb") as f:
         pickle.dump(assessments_data, f)
 
     return JsonResponse({"message": "Retraining Model"})

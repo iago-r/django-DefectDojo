@@ -51,7 +51,7 @@ def process_kev_db(basedir: Path, cve2meta: dict[str, dict]):
         msg = "KEV file missing"
         raise ValueError(msg)
     logger.info("Loading KVE database from %s", fp)
-    with open(fp, encoding="utf8") as fd:
+    with Path.open(fp, encoding="utf8") as fd:
         kevdb = json.load(fd)
         for vuln in kevdb["vulnerabilities"]:
             cve = vuln.pop("cveID").lower()
@@ -93,9 +93,11 @@ def get_cpes(cvedata: dict) -> list[str]:
     try:
         nodes = cvedata["configurations"]["nodes"]
         for node in nodes:
-            for cpe in node["cpe_match"]:
-                if (cpe23 := cpe.get("cpe23Uri")) is not None:
-                    cpes.append(cpe23)
+            cpes.extend(
+                cpe["cpe23Uri"]
+                for cpe in node.get("cpe_match", [])
+                if "cpe23Uri" in cpe
+            )
     except KeyError:
         return []
     return cpes
@@ -129,7 +131,7 @@ def process_cwe_db(basedir: Path) -> dict[str, str]:
     cwe2name = {}
     for fn in basedir.glob("cwe/*.xml"):
         logger.info("Loading CWE data from %s", fn)
-        with open(fn, encoding="utf8") as fd:
+        with Path.open(fn, encoding="utf8") as fd:
             tree = ET.parse(fd)
 
         root = tree.getroot()
@@ -203,7 +205,7 @@ def main():
     cve2meta = dict(cve2meta)  # remove defaultdict before pickle
     with gzip.open(WORKDIR / "cve2meta.pkl.gz", "w") as fd:
         pickle.dump(cve2meta, fd)
-    with open(WORKDIR / "cve2meta.json", "w", encoding="utf8") as fd:
+    with Path.open(WORKDIR / "cve2meta.json", "w", encoding="utf8") as fd:
         json.dump(cve2meta, fd)
 
 

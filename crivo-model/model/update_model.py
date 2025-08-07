@@ -103,7 +103,7 @@ def export_predictions_to_pickle(predictions_df: pd.DataFrame, output_path: Path
     df_to_pickle = predictions_df.assign(id=predictions_df.index)[
         ["id", "user_id", "predicted_risk_label", "predicted_risk_class"]
     ].to_dict(orient="records")
-    with open(output_path, "wb") as f:
+    with Path.open(output_path, "wb") as f:
         pickle.dump(df_to_pickle, f)
     logger.info(f"Exported prediction results to {output_path} as pickle")
 

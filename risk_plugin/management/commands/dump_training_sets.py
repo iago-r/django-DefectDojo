@@ -54,22 +54,21 @@ class Command(BaseCommand):
 
     def extract_features(self):
         """Extract feature data from Finding objects."""
-        findings_data = []
-        for finding in Finding.objects.all():
-            findings_data.append(
-                {
-                    "id": finding.id,
-                    "title": finding.title,
-                    "date": finding.date,
-                    "description": finding.description,
-                    "severity": finding.severity,
-                    "vuln_id_from_tool": finding.vuln_id_from_tool,
-                    "mitigation": finding.mitigation,
-                    "epss_score": finding.epss_score,
-                    "epss_percentile": finding.epss_percentile,
-                    "cve": finding.cve,
-                },
-            )
+        findings_data = [
+            {
+                "id": finding.id,
+                "title": finding.title,
+                "date": finding.date,
+                "description": finding.description,
+                "severity": finding.severity,
+                "vuln_id_from_tool": finding.vuln_id_from_tool,
+                "mitigation": finding.mitigation,
+                "epss_score": finding.epss_score,
+                "epss_percentile": finding.epss_percentile,
+                "cve": finding.cve,
+            }
+            for finding in Finding.objects.all()
+        ]
         if findings_data:
             logger.info(f"Extracted {len(findings_data)} findings.")
             return findings_data
