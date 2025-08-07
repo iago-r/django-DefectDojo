@@ -328,10 +328,10 @@
                                         {% if request.user|check_problems_enabled %}
                                         <li>
                                             <a href="{% url 'open_problems' %}" aria-expanded="false" aria-label="Problems">
-                                                <i class="fa-solid fa-triangle-exclamation fa-fw"></i>
+                                                <i class="fa-solid fa-folder-tree fa-fw"></i>
                                                 <span>{% trans "Dashboard" %}</span>
                                                 <span class="glyphicon arrow"></span>
-                                            </a> 
+                                            </a>
                                             <ul class="nav nav-second-level">
                                                 <li>
                                                     <a href="{% url 'open_problems' %}">
