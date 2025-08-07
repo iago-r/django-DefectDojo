@@ -18,15 +18,18 @@ import crum
 import hyperlink
 import vobject
 from asteval import Interpreter
+from auditlog.models import LogEntry
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cvss import CVSS2, CVSS3, CVSS4, CVSSError
 from dateutil.parser import parse
 from dateutil.relativedelta import MO, SU, relativedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
+from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
-from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
+from django.db.models import Case, Count, F, IntegerField, Q, Sum, Value, When
 from django.db.models.query import QuerySet
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -219,7 +222,7 @@ def match_finding_to_existing_findings(finding, product=None, engagement=None, t
         return (
             Finding.objects.filter(
                 **custom_filter,
-                title=finding.title,
+                title__iexact=finding.title,
                 severity=finding.severity,
                 numerical_severity=Finding.get_numerical_severity(finding.severity),
             ).order_by("id")
@@ -235,10 +238,7 @@ def is_deduplication_on_engagement_mismatch(new_finding, to_duplicate_finding):
 
 
 def get_endpoints_as_url(finding):
-    list1 = []
-    for e in finding.endpoints.all():
-        list1.append(hyperlink.parse(str(e)))
-    return list1
+    return [hyperlink.parse(str(e)) for e in finding.endpoints.all()]
 
 
 def are_urls_equal(url1, url2, fields):
@@ -577,40 +577,31 @@ def set_duplicate_reopen(new_finding, existing_finding):
     existing_finding.save()
 
 
-def count_findings(findings):
-    product_count = {}
-    finding_count = {"low": 0, "med": 0, "high": 0, "crit": 0}
-    for f in findings:
-        product = f.test.engagement.product
-        if product in product_count:
-            product_count[product][4] += 1
-            if f.severity == "Low":
-                product_count[product][3] += 1
-                finding_count["low"] += 1
-            if f.severity == "Medium":
-                product_count[product][2] += 1
-                finding_count["med"] += 1
-            if f.severity == "High":
-                product_count[product][1] += 1
-                finding_count["high"] += 1
-            if f.severity == "Critical":
-                product_count[product][0] += 1
-                finding_count["crit"] += 1
-        else:
-            product_count[product] = [0, 0, 0, 0, 0]
-            product_count[product][4] += 1
-            if f.severity == "Low":
-                product_count[product][3] += 1
-                finding_count["low"] += 1
-            if f.severity == "Medium":
-                product_count[product][2] += 1
-                finding_count["med"] += 1
-            if f.severity == "High":
-                product_count[product][1] += 1
-                finding_count["high"] += 1
-            if f.severity == "Critical":
-                product_count[product][0] += 1
-                finding_count["crit"] += 1
+def count_findings(findings: QuerySet) -> tuple[dict["Product", list[int]], dict[str, int]]:
+    agg = (
+        findings.values(prod_id=F("test__engagement__product_id"))
+        .annotate(
+            crit=Count("id", filter=Q(severity="Critical")),
+            high=Count("id", filter=Q(severity="High")),
+            med=Count("id", filter=Q(severity="Medium")),
+            low=Count("id", filter=Q(severity="Low")),
+            total=Count("id"),
+        )
+    )
+    rows = list(agg)
+
+    from dojo.models import Product  # imported lazily to avoid circulars
+
+    products = Product.objects.in_bulk([r["prod_id"] for r in rows])
+    product_count = {
+        products[r["prod_id"]]: [r["crit"], r["high"], r["med"], r["low"], r["total"]] for r in rows
+    }
+    finding_count = {
+        "low": sum(r["low"] for r in rows),
+        "med": sum(r["med"] for r in rows),
+        "high": sum(r["high"] for r in rows),
+        "crit": sum(r["crit"] for r in rows),
+    }
     return product_count, finding_count
 
 
@@ -893,9 +884,7 @@ def get_punchcard_data(objs, start_date, weeks, view="Finding"):
 
 
 def get_week_data(week_start_date, tick, day_counts):
-    data = []
-    for i in range(len(day_counts)):
-        data.append([tick, i, day_counts[i]])
+    data = [[tick, i, day_counts[i]] for i in range(len(day_counts))]
     label = [tick, week_start_date.strftime("<span class='small'>%m/%d<br/>%Y</span>")]
     return data, label
 
@@ -1377,23 +1366,24 @@ def handle_uploaded_threat(f, eng):
     path = Path(f.name)
     extension = path.suffix
     # Check if threat folder exist.
-    if not Path(settings.MEDIA_ROOT + "/threat/").is_dir():
+    threat_dir = Path(settings.MEDIA_ROOT) / "threat"
+    if not threat_dir.is_dir():
         # Create the folder
-        Path(settings.MEDIA_ROOT + "/threat/").mkdir()
-    with open(settings.MEDIA_ROOT + f"/threat/{eng.id}{extension}",
-              "wb+") as destination:
+        threat_dir.mkdir()
+    eng_path = threat_dir / f"{eng.id}{extension}"
+    with eng_path.open("wb+") as destination:
         destination.writelines(chunk for chunk in f.chunks())
-    eng.tmodel_path = settings.MEDIA_ROOT + f"/threat/{eng.id}{extension}"
+    eng.tmodel_path = str(eng_path)
     eng.save()
 
 
 def handle_uploaded_selenium(f, cred):
     path = Path(f.name)
     extension = path.suffix
-    with open(settings.MEDIA_ROOT + f"/selenium/{cred.id}{extension}",
-              "wb+") as destination:
+    sel_path = Path(settings.MEDIA_ROOT) / "selenium" / f"{cred.id}{extension}"
+    with sel_path.open("wb+") as destination:
         destination.writelines(chunk for chunk in f.chunks())
-    cred.selenium_script = settings.MEDIA_ROOT + f"/selenium/{cred.id}{extension}"
+    cred.selenium_script = str(sel_path)
     cred.save()
 
 
@@ -1620,35 +1610,6 @@ def get_celery_worker_status():
         return res.get(timeout=5)
     except:
         return False
-
-
-def get_work_days(start: date, end: date):
-    """
-    Math function to get workdays between 2 dates.
-    Can be used only as fallback as it doesn't know
-    about specific country holidays or extra working days.
-    https://stackoverflow.com/questions/3615375/number-of-days-between-2-dates-excluding-weekends/71977946#71977946
-    """
-    # if the start date is on a weekend, forward the date to next Monday
-    if start.weekday() > WEEKDAY_FRIDAY:
-        start += timedelta(days=7 - start.weekday())
-
-    # if the end date is on a weekend, rewind the date to the previous Friday
-    if end.weekday() > WEEKDAY_FRIDAY:
-        end -= timedelta(days=end.weekday() - WEEKDAY_FRIDAY)
-
-    if start > end:
-        return 0
-    # that makes the difference easy, no remainders etc
-    diff_days = (end - start).days + 1
-    weeks = int(diff_days / 7)
-
-    remainder = end.weekday() - start.weekday() + 1
-
-    if remainder != 0 and end.weekday() < start.weekday():
-        remainder += 5
-
-    return weeks * 5 + remainder
 
 
 # Used to display the counts and enabled tabs in the product view
@@ -1936,9 +1897,9 @@ def sla_compute_and_notify(*args, **kwargs):
         return title
 
     def _create_notifications():
-        for pt in combined_notifications:
-            for p in combined_notifications[pt]:
-                for kind in combined_notifications[pt][p]:
+        for prodtype, comb_notif_prodtype in combined_notifications.items():
+            for prod, comb_notif_prod in comb_notif_prodtype.items():
+                for kind, comb_notif_kind in comb_notif_prod.items():
                     # creating notifications on per-finding basis
 
                     # we need this list for combined notification feature as we
@@ -1946,7 +1907,7 @@ def sla_compute_and_notify(*args, **kwargs):
                     # create_notification() arguments
                     findings_list = []
 
-                    for n in combined_notifications[pt][p][kind]:
+                    for n in comb_notif_kind:
                         title = _notification_title_for_finding(n.finding, kind, n.finding.sla_days_remaining())
 
                         create_notification(
@@ -1963,8 +1924,8 @@ def sla_compute_and_notify(*args, **kwargs):
                         findings_list.append(n.finding)
 
                     # producing a "combined" SLA breach notification
-                    title_combined = f"SLA alert ({kind}): product type '{pt}', product '{p}'"
-                    product = combined_notifications[pt][p][kind][0].finding.test.engagement.product
+                    title_combined = f"SLA alert ({kind}): product type '{prodtype}', product '{prod}'"
+                    product = comb_notif_kind[0].finding.test.engagement.product
                     create_notification(
                         event="sla_breach_combined",
                         title=title_combined,
@@ -2203,7 +2164,7 @@ def add_error_message_to_response(message):
 
 def add_field_errors_to_response(form):
     if form and get_current_request():
-        for field, error in form.errors.items():
+        for error in form.errors.values():
             add_error_message_to_response(error)
 
 
@@ -2240,22 +2201,18 @@ def mass_model_updater(model_type, models, function, fields, page_size=1000, ord
     i = 0
     batch = []
     total_pages = (total_count // page_size) + 2
-    # logger.info('pages to process: %d', total_pages)
+    # logger.debug("pages to process: %d", total_pages)
     logger.debug("%s%s out of %s models processed ...", log_prefix, i, total_count)
-    for p in range(1, total_pages):
-        # logger.info('page: %d', p)
+    for _p in range(1, total_pages):
         if order == "asc":
             page = models.filter(id__gt=last_id)[:page_size]
         else:
             page = models.filter(id__lt=last_id)[:page_size]
 
-        # logger.info('page query: %s', page.query)
-        # if p == 23:
-        #     raise ValueError('bla')
+        logger.debug("page query: %s", page.query)
         for model in page:
             i += 1
             last_id = model.id
-            # logger.info('last_id: %s', last_id)
 
             function(model)
 
@@ -2330,9 +2287,7 @@ def get_file_images(obj, *, return_objects=False):
 def get_enabled_notifications_list():
     # Alerts need to enabled by default
     enabled = ["alert"]
-    for choice in NOTIFICATION_CHOICES:
-        if get_system_setting(f"enable_{choice[0]}_notifications"):
-            enabled.append(choice[0])
+    enabled.extend(choice[0] for choice in NOTIFICATION_CHOICES if get_system_setting(f"enable_{choice[0]}_notifications"))
     return enabled
 
 
@@ -2371,6 +2326,15 @@ class async_delete:
                 logger.debug("ASYNC_DELETE: object has already been deleted elsewhere. Skipping")
                 # The id must be None
                 # The object has already been deleted elsewhere
+            except LogEntry.MultipleObjectsReturned:
+                # Delete the log entrys first, then delete
+                LogEntry.objects.filter(
+                    content_type=ContentType.objects.get_for_model(obj.__class__),
+                    object_pk=str(obj.pk),
+                    action=LogEntry.Action.DELETE,
+                ).delete()
+                # Now delete the object again
+                obj.delete()
 
     @dojo_async_task
     @app.task
@@ -2393,7 +2357,8 @@ class async_delete:
             model = model_info[0]
             model_query = model_info[1]
             filter_dict = {model_query: obj}
-            objects_to_delete = model.objects.filter(**filter_dict)
+            # Only fetch the IDs since we will make a list of IDs in the following function call
+            objects_to_delete = model.objects.only("id").filter(**filter_dict)
             logger.debug("ASYNC_DELETE: Deleting " + str(len(objects_to_delete)) + " " + self.get_object_name(model) + "s in chunks")
             chunks = self.chunk_list(model, objects_to_delete)
             for chunk in chunks:
@@ -2481,26 +2446,17 @@ def calculate_finding_age(f):
     if start_date and isinstance(start_date, str):
         start_date = parse(start_date).date()
 
-    if settings.SLA_BUSINESS_DAYS:
-        if f.get("mitigated"):
-            mitigated_date = f.get("mitigated")
-            if isinstance(mitigated_date, datetime):
-                mitigated_date = f.get("mitigated").date()
-            days = get_work_days(f.get("date"), mitigated_date)
-        else:
-            days = get_work_days(f.get("date"), timezone.now().date())
-    else:
-        if isinstance(start_date, datetime):
-            start_date = start_date.date()
+    if isinstance(start_date, datetime):
+        start_date = start_date.date()
 
-        if f.get("mitigated"):
-            mitigated_date = f.get("mitigated")
-            if isinstance(mitigated_date, datetime):
-                mitigated_date = f.get("mitigated").date()
-            diff = mitigated_date - start_date
-        else:
-            diff = timezone.now().date() - start_date
-        days = diff.days
+    if f.get("mitigated"):
+        mitigated_date = f.get("mitigated")
+        if isinstance(mitigated_date, datetime):
+            mitigated_date = f.get("mitigated").date()
+        diff = mitigated_date - start_date
+    else:
+        diff = timezone.now().date() - start_date
+    days = diff.days
     return max(0, days)
 
 
@@ -2624,10 +2580,8 @@ def get_open_findings_burndown(product):
                         info_count -= 1
 
         f_day = [critical_count, high_count, medium_count, low_count, info_count]
-        if min(f_day) < running_min:
-            running_min = min(f_day)
-        if max(f_day) > running_max:
-            running_max = max(f_day)
+        running_min = min(running_min, *f_day)
+        running_max = max(running_max, *f_day)
 
         past_90_days["Critical"].append([d_start * 1000, critical_count])
         past_90_days["High"].append([d_start * 1000, high_count])
@@ -2671,9 +2625,11 @@ def generate_file_response(file_object: FileUpload) -> FileResponse:
         raise TypeError(msg)
     # Determine the path of the file on disk within the MEDIA_ROOT
     file_path = f"{settings.MEDIA_ROOT}/{file_object.file.url.lstrip(settings.MEDIA_URL)}"
+    # Clean the title by removing some problematic characters
+    cleaned_file_name = re.sub(r'[<>:"/\\|?*`=\'&%#;]', "-", file_object.title)
 
     return generate_file_response_from_file_path(
-        file_path, file_name=file_object.title, file_size=file_object.file.size,
+        file_path, file_name=cleaned_file_name, file_size=file_object.file.size,
     )
 
 
@@ -2694,7 +2650,7 @@ def generate_file_response_from_file_path(
     # Generate the FileResponse
     full_file_name = f"{file_name}{file_extension}"
     response = FileResponse(
-        open(file_path, "rb"),
+        path.open("rb"),
         filename=full_file_name,
         content_type=f"{mimetypes.guess_type(file_path)}",
     )
@@ -2702,3 +2658,85 @@ def generate_file_response_from_file_path(
     response["Content-Disposition"] = f'attachment; filename="{full_file_name}"'
     response["Content-Length"] = file_size
     return response
+
+
+# TEMPORARY: Local implementation until the upstream PR is merged & released: https://github.com/RedHatProductSecurity/cvss/pull/75
+def parse_cvss_from_text(text):
+    """
+    Parses CVSS2, CVSS3, and CVSS4 vectors from arbitrary text and returns a list of CVSS objects.
+
+    Parses text for substrings that look similar to CVSS vector
+    and feeds these matches to CVSS constructor.
+
+    Args:
+        text (str): arbitrary text
+
+    Returns:
+        A list of CVSS objects.
+
+    """
+    # Looks for substrings that resemble CVSS2, CVSS3, or CVSS4 vectors.
+    # CVSS3 and CVSS4 vectors start with a 'CVSS:x.x/' prefix and are matched by the optional non-capturing group.
+    # CVSS2 vectors do not include a prefix and are matched by raw vector pattern only.
+    # Minimum total match length is 26 characters to reduce false positives.
+    matches = re.compile(r"(?:CVSS:[3-4]\.\d/)?[A-Za-z:/]{26,}").findall(text)
+
+    cvsss = set()
+    for match in matches:
+        try:
+            if match.startswith("CVSS:4."):
+                cvss = CVSS4(match)
+            elif match.startswith("CVSS:3."):
+                cvss = CVSS3(match)
+            else:
+                cvss = CVSS2(match)
+
+            cvsss.add(cvss)
+        except (CVSSError, KeyError):
+            pass
+
+    return list(cvsss)
+
+
+def parse_cvss_data(cvss_vector_string: str) -> dict:
+    if not cvss_vector_string:
+        return {}
+
+    vectors = parse_cvss_from_text(cvss_vector_string)
+    if len(vectors) > 0:
+        vector = vectors[0]
+        # For CVSS2, environmental score is at index 2
+        # For CVSS3, environmental score is at index 2
+        # For CVSS4, only base score is available (at index 0)
+        # These CVSS2/3/4 objects do not have a version field (only a minor_version field)
+        major_version = cvssv2 = cvssv2_score = cvssv3 = cvssv3_score = cvssv4 = cvssv4_score = severity = None
+        if type(vector) is CVSS4:
+            major_version = 4
+            cvssv4 = vector.clean_vector()
+            cvssv4_score = vector.scores()[0]
+            logger.debug("CVSS4 vector: %s, score: %s", cvssv4, cvssv4_score)
+            severity = vector.severities()[0]
+        elif type(vector) is CVSS3:
+            major_version = 3
+            cvssv3 = vector.clean_vector()
+            cvssv3_score = vector.scores()[2]
+            severity = vector.severities()[0]
+        elif type(vector) is CVSS2:
+            # CVSS2 is not supported, but we return it anyway to allow parser to use the severity or score for other purposes
+            cvssv2 = vector.clean_vector()
+            cvssv2_score = vector.scores()[2]
+            severity = vector.severities()[0]
+            major_version = 2
+
+        return {
+            "major_version": major_version,
+            "cvssv2": cvssv2,
+            "cvssv2_score": cvssv2_score,
+            "cvssv3": cvssv3,
+            "cvssv3_score": cvssv3_score,
+            "cvssv4": cvssv4,
+            "cvssv4_score": cvssv4_score,
+            "severity": severity,
+        }
+    logger.debug("No valid CVSS3 or CVSS4 vector found in %s", cvss_vector_string)
+    return {}

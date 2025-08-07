@@ -3,7 +3,7 @@ import logging
 import re
 
 import html2text
-from defusedxml import ElementTree as etree
+from defusedxml import ElementTree
 
 from dojo.models import Endpoint, Finding
 
@@ -31,6 +31,10 @@ class BurpParser:
         - scanner_confidence: Converted from Burp format (Certain, Firm, or Tentative) into Defect Dojo integer format.
         - description: Made by combining URL, url_host, path, and detail.
         - mitigation: Made using Remediation that was ouputted by Burp scanner
+        - false_p: Set to false.
+        - duplicate: Set to false.
+        - out_of_scope: Set to false.
+        - dynamic_finding: Set to true.
         - impact: Set to background returned by Burp Scanner.
         - unique_id_from_tool: Set to serial_number returned by Burp Scanner.
         - vuln_id_from_tool: Taken from output of Burp Scanner.
@@ -44,6 +48,10 @@ class BurpParser:
             "scanner_confidence",
             "description",
             "mitigation",
+            "false_p",
+            "duplicate",
+            "out_of_scope",
+            "dynamic_finding",
             "impact",
             "unique_id_from_tool",
             "vuln_id_from_tool",
@@ -60,6 +68,7 @@ class BurpParser:
         - description: Made by combining URL, url_host, path, and detail.
 
         NOTE: uses legacy dedupe: ['title', 'cwe', 'line', 'file_path', 'description']
+        NOTE: line and file_path is not provided by parser
         """
         return [
             "title",
@@ -80,7 +89,7 @@ class BurpParser:
         )
 
     def get_findings(self, xml_output, test):
-        tree = etree.parse(xml_output, etree.XMLParser())
+        tree = ElementTree.parse(xml_output, ElementTree.XMLParser())
         return self.get_items(tree, test)
 
     def get_items(self, tree, test):
@@ -143,8 +152,7 @@ def do_clean_cwe(value):
     if len(value) > 0:
         for x in value:
             if x.text is not None:
-                for detected in re.findall(r"CWE-(\d+)", x.text):
-                    cwes.append(int(detected))
+                cwes.extend(int(detected) for detected in re.findall(r"CWE-(\d+)", x.text))
     return cwes
 
 

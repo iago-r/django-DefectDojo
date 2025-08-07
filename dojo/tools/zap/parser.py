@@ -1,4 +1,4 @@
-from defusedxml import ElementTree as ET
+from defusedxml import ElementTree
 from html2text import html2text
 
 from dojo.models import Endpoint, Finding
@@ -18,6 +18,8 @@ class ZapParser:
         - severity: Set to severity from Zap Scanner that has been mapped to Defect Dojo's format.
         - scanner_confidence: Set to scanner confidence values that has been mapped to Defect Dojo's format.
         - mitigation: Set to solution from Zap Scanner.
+        - dynamic_finding: Set to true.
+        - static_finding: Set to false.
         - vuln_id_from_tool: Set to pluginid from scanner.
         - cwe: Set to cwe from Zap Scanner.
         """
@@ -27,7 +29,9 @@ class ZapParser:
             "severity",
             "scanner_confidence",
             "mitigation",
-            "vuln_in_from_tool",
+            "dynamic_finding",
+            "static_finding",
+            "vuln_id_from_tool",
             "cwe",
         ]
 
@@ -68,7 +72,7 @@ class ZapParser:
         if not file.name.endswith(".xml"):
             msg = "Internal error: Wrong file format, please use xml."
             raise ValueError(msg)
-        tree = ET.parse(file)
+        tree = ElementTree.parse(file)
         items = []
         for node in tree.findall("site"):
             for item in node.findall("alerts/alertitem"):

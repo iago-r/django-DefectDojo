@@ -4,6 +4,53 @@ from dojo.models import Finding
 
 
 class CheckovParser:
+
+    def get_fields(self) -> list[str]:
+        """
+        Return the list of fields used in the Checkov Parser.
+        Fields:
+        - title: Set to check_name outputted from Checkov Scanner.
+        - description: Custom description made from: check type, check id, and check name.
+        - severity: Set to severity from Checkov Scanner that has been translated into Defect Dojo format.
+        - mitigation: Set to severity from Checkov Scanner that has been translated into Defect Dojo format.
+        - file_path: Set to file path from Checkov Scanner.
+        - line: Set to first line of the file line range from Checkov Scanner.
+        - component_name: Set to resource from Checkov Scanner.
+        - static_finding: Set to true.
+        - dynamic_finding: Set to false.
+        """
+        return [
+            "title",
+            "description",
+            "severity",
+            "mitigation",
+            "file_path",
+            "line",
+            "component_name",
+            "static_finding",
+            "dynamic_finding",
+        ]
+
+    def get_dedupe_fields(self) -> list[str]:
+        """
+        Return the list of dedupe fields used in the Checkov Parser
+
+        Fields:
+        - title: Set to check_name outputted from Checkov Scanner.
+        - line: Set to first line of the file line range from Checkov Scanner.
+        - file_path: Set to file path from Checkov Scanner.
+        - description: Custom description made from: check type, check id, and check name.
+
+        NOTE: uses legacy dedupe: ['title', 'cwe', 'line', 'file_path', 'description']
+        NOTE: cwe is not provided by parser
+        """
+        return [
+            "title",
+            "line",
+            "file_path",
+            "description",
+        ]
+
     def get_scan_types(self):
         return ["Checkov Scan"]
 
@@ -72,6 +119,18 @@ def get_item(vuln, test, check_type):
     if "check_name" in vuln:
         description += f"{vuln['check_name']}\n"
 
+    if "description" in vuln:
+        description += f"\n{vuln['description']}\n"
+    mitigation = ""
+    if "benchmarks" in vuln and vuln["benchmarks"] is not None:
+        bms = vuln["benchmarks"].keys()
+        if len(bms) > 0:
+            mitigation += "\nBenchmarks:\n"
+            for bm in bms:
+                if vuln["benchmarks"][bm] is not None:
+                    for gl in vuln["benchmarks"][bm]:
+                        mitigation += f"- {bm} # {gl['name']} : {gl['description']}\n"
+
     file_path = vuln.get("file_path", None)
     source_line = None
     if "file_line_range" in vuln:
@@ -85,8 +144,6 @@ def get_item(vuln, test, check_type):
     severity = "Medium"
     if "severity" in vuln and vuln["severity"] is not None:
         severity = vuln["severity"].capitalize()
-
-    mitigation = ""
 
     references = vuln.get("guideline", "")
     return Finding(

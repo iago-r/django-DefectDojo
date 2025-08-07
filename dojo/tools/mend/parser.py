@@ -36,6 +36,10 @@ class MendParser:
             component_name = None
             component_version = None
             impact = None
+            kev_date = None
+            ransomware_used = None
+            known_exploited = None
+            component_path = None
             description = "No Description Available"
             cvss3_score = None
             mitigation = "N/A"
@@ -51,9 +55,6 @@ class MendParser:
                     + "**Component Type**: "
                     + node["component"].get("componentType", "")
                     + "\n"
-                    + "**Root Library**: "
-                    + str(node["component"].get("rootLibrary", ""))
-                    + "\n"
                     + "**Library Type**: "
                     + node["component"].get("libraryType", "")
                     + "\n"
@@ -67,6 +68,9 @@ class MendParser:
                     + "\n"
                 )
                 cvss3_score = node["vulnerability"].get("score", None)
+                kev_date = node["vulnerability"].get("publishDate", None)
+                ransomware_used = node.get("malicious", None)
+                known_exploited = node.get("exploitable", None)
                 component_path = node["component"].get("path", None)
                 if component_path:
                     locations.append(component_path)
@@ -141,8 +145,7 @@ class MendParser:
             if "sourceFiles" in node:
                 try:
                     sourceFiles_node = node.get("sourceFiles")
-                    for sfile in sourceFiles_node:
-                        filepaths.append(sfile.get("localPath"))
+                    filepaths.extend(sfile.get("localPath") for sfile in sourceFiles_node)
                 except Exception:
                     logger.exception(
                         "Error handling local paths for vulnerability.",
@@ -199,6 +202,9 @@ class MendParser:
                 cvssv3_score=float(cvss3_score) if cvss3_score is not None else None,
                 impact=impact if impact is not None else None,
                 steps_to_reproduce="**Locations Found**: " + ", ".join(locations) if locations is not None else None,
+                kev_date=kev_date if kev_date is not None else None,
+                known_exploited=known_exploited if known_exploited is not None else None,
+                ransomware_used=ransomware_used if ransomware_used is not None else None,
             )
             if cve:
                 new_finding.unsaved_vulnerability_ids = [cve]
@@ -217,17 +223,13 @@ class MendParser:
                     "vulnerabilities" in lib_node
                     and len(lib_node.get("vulnerabilities")) > 0
                 ):
-                    for vuln in lib_node.get("vulnerabilities"):
-                        findings.append(
-                            _build_common_output(vuln, lib_node.get("name")),
-                        )
+                    findings.extend(_build_common_output(vuln, lib_node.get("name")) for vuln in lib_node.get("vulnerabilities"))
 
         elif "vulnerabilities" in content:
             # likely a manual json export for vulnerabilities only for a project.
             # Vulns are standalone, and library is a property.
             tree_node = content["vulnerabilities"]
-            for node in tree_node:
-                findings.append(_build_common_output(node))
+            findings.extend(_build_common_output(node) for node in tree_node)
 
         elif "components" in content:
             # likely a Mend Platform or 3.0 API SCA output - "library" is replaced as "component"
@@ -238,24 +240,20 @@ class MendParser:
                     "response" in comp_node
                     and len(comp_node.get("response")) > 0
                 ):
-                    for vuln in comp_node.get("response"):
-                        findings.append(
-                            _build_common_output(vuln, comp_node.get("name")),
-                        )
+                    findings.extend(_build_common_output(vuln, comp_node.get("name")) for vuln in comp_node.get("response"))
 
         elif "response" in content:
             # New schema: handle response array
             tree_node = content["response"]
             if tree_node:
-                for node in tree_node:
-                    if node.get("findingInfo", {}).get("status") == "ACTIVE":
-                        findings.append(_build_common_output(node))
+                findings.extend(_build_common_output(node) for node in tree_node
+                                                            if node.get("findingInfo", {}).get("status") == "ACTIVE")
 
         def create_finding_key(f: Finding) -> str:
             # """Hashes the finding's description and title to retrieve a key for deduplication."""
             return hashlib.md5(
                 f.description.encode("utf-8")
-                + f.title.encode("utf-8"),
+                + f.title.encode("utf-8"), usedforsecurity=False,
             ).hexdigest()
 
         dupes = {}

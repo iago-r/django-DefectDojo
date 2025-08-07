@@ -2,6 +2,7 @@
 import base64
 import logging
 import operator
+import time
 from datetime import datetime
 from functools import reduce
 
@@ -9,8 +10,7 @@ from django.contrib import messages
 from django.contrib.admin.utils import NestedObjects
 from django.core.exceptions import ValidationError
 from django.db import DEFAULT_DB_ALIAS
-from django.db.models import Count, Q, QuerySet
-from django.db.models.query import Prefetch
+from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import Resolver404, reverse
@@ -27,6 +27,7 @@ from dojo.authorization.authorization_decorators import user_is_authorized
 from dojo.authorization.roles_permissions import Permissions
 from dojo.engagement.queries import get_authorized_engagements
 from dojo.filters import FindingFilter, FindingFilterWithoutObjectLookups, TemplateFindingFilter, TestImportFilter
+from dojo.finding.queries import prefetch_for_findings
 from dojo.finding.views import find_available_notetypes
 from dojo.forms import (
     AddFindingForm,
@@ -43,7 +44,6 @@ from dojo.forms import (
 from dojo.importers.base_importer import BaseImporter
 from dojo.importers.default_reimporter import DefaultReImporter
 from dojo.models import (
-    IMPORT_UNTOUCHED_FINDING,
     BurpRawRequestResponse,
     Cred_Mapping,
     Endpoint,
@@ -55,9 +55,13 @@ from dojo.models import (
     Stub_Finding,
     Test,
     Test_Import,
-    Test_Import_Finding_Action,
 )
 from dojo.notifications.helper import create_notification
+from dojo.product_announcements import (
+    ErrorPageProductAnnouncement,
+    LargeScanSizeProductAnnouncement,
+    ScanTypeProductAnnouncement,
+)
 from dojo.test.queries import get_authorized_tests
 from dojo.tools.factory import get_choices_sorted, get_scan_types_sorted
 from dojo.user.queries import get_authorized_users
@@ -82,36 +86,6 @@ from dojo.utils import (
 logger = logging.getLogger(__name__)
 parse_logger = logging.getLogger("dojo")
 deduplicationLogger = logging.getLogger("dojo.specific-loggers.deduplication")
-
-
-def prefetch_for_findings(findings):
-    prefetched_findings = findings
-    if isinstance(findings, QuerySet):  # old code can arrive here with prods being a list because the query was already executed
-        prefetched_findings = prefetched_findings.select_related("reporter")
-        prefetched_findings = prefetched_findings.prefetch_related("jira_issue__jira_project__jira_instance")
-        prefetched_findings = prefetched_findings.prefetch_related("test__test_type")
-        prefetched_findings = prefetched_findings.prefetch_related("test__engagement__jira_project__jira_instance")
-        prefetched_findings = prefetched_findings.prefetch_related("test__engagement__product__jira_project_set__jira_instance")
-        prefetched_findings = prefetched_findings.prefetch_related("found_by")
-        prefetched_findings = prefetched_findings.prefetch_related("risk_acceptance_set")
-        # we could try to prefetch only the latest note with SubQuery and OuterRef, but I'm getting that MySql doesn't support limits in subqueries.
-        prefetched_findings = prefetched_findings.prefetch_related("notes")
-        prefetched_findings = prefetched_findings.prefetch_related("tags")
-        # filter out noop reimport actions from finding status history
-        prefetched_findings = prefetched_findings.prefetch_related(Prefetch("test_import_finding_action_set",
-                                                                            queryset=Test_Import_Finding_Action.objects.exclude(action=IMPORT_UNTOUCHED_FINDING)))
-
-        prefetched_findings = prefetched_findings.prefetch_related("endpoints")
-        prefetched_findings = prefetched_findings.prefetch_related("status_finding")
-        prefetched_findings = prefetched_findings.annotate(active_endpoint_count=Count("status_finding__id", filter=Q(status_finding__mitigated=False)))
-        prefetched_findings = prefetched_findings.annotate(mitigated_endpoint_count=Count("status_finding__id", filter=Q(status_finding__mitigated=True)))
-        prefetched_findings = prefetched_findings.prefetch_related("finding_group_set__jira_issue")
-        prefetched_findings = prefetched_findings.prefetch_related("duplicate_finding")
-        prefetched_findings = prefetched_findings.prefetch_related("vulnerability_id_set")
-    else:
-        logger.debug("unable to prefetch because query was already executed")
-
-    return prefetched_findings
 
 
 class ViewTest(View):
@@ -144,7 +118,7 @@ class ViewTest(View):
         findings = Finding.objects.filter(test=test).order_by("numerical_severity")
         filter_string_matching = get_system_setting("filter_string_matching", False)
         finding_filter_class = FindingFilterWithoutObjectLookups if filter_string_matching else FindingFilter
-        findings = finding_filter_class(request.GET, queryset=findings)
+        findings = finding_filter_class(request.GET, pid=test.engagement.product.id, queryset=findings)
         paged_findings = get_page_items_and_count(request, prefetch_for_findings(findings.qs), 25, prefix="findings")
 
         return {
@@ -1009,16 +983,22 @@ class ReImportScanResultsView(View):
 
     def success_redirect(
         self,
+        request: HttpRequest,
         context: dict,
     ) -> HttpResponseRedirect:
         """Redirect the user to a place that indicates a successful import"""
+        duration = time.perf_counter() - request._start_time
+        LargeScanSizeProductAnnouncement(request=request, duration=duration)
+        ScanTypeProductAnnouncement(request=request, scan_type=context.get("scan_type"))
         return HttpResponseRedirect(reverse("view_test", args=(context.get("test").id, )))
 
     def failure_redirect(
         self,
+        request: HttpRequest,
         context: dict,
     ) -> HttpResponseRedirect:
         """Redirect the user to a place that indicates a failed import"""
+        ErrorPageProductAnnouncement(request=request)
         return HttpResponseRedirect(reverse(
             "re_import_scan_results",
             args=(context.get("test").id, ),
@@ -1049,20 +1029,21 @@ class ReImportScanResultsView(View):
             request,
             test_id=test_id,
         )
+        request._start_time = time.perf_counter()
         # ensure all three forms are valid first before moving forward
         if not self.validate_forms(context):
             return self.failure_redirect(context)
         # Process the jira form if it is present
         if form_error := self.process_jira_form(request, context.get("jform"), context):
             add_error_message_to_response(form_error)
-            return self.failure_redirect(context)
+            return self.failure_redirect(request, context)
         # Process the import form
         if form_error := self.process_form(request, context.get("form"), context):
             add_error_message_to_response(form_error)
-            return self.failure_redirect(context)
+            return self.failure_redirect(request, context)
         # Kick off the import process
         if import_error := self.reimport_findings(context):
             add_error_message_to_response(import_error)
-            return self.failure_redirect(context)
+            return self.failure_redirect(request, context)
         # Otherwise return the user back to the engagement (if present) or the product
-        return self.success_redirect(context)
+        return self.success_redirect(request, context)

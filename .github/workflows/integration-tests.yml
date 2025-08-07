@@ -31,10 +31,17 @@ jobs:
           "tests/search_test.py",
           "tests/file_test.py",
           "tests/dedupe_test.py",
+          "tests/announcement_banner_test.py",
+          "tests/close_old_findings_dedupe_test.py",
+          "tests/close_old_findings_test.py",
+          "tests/false_positive_history_test.py",
           "tests/check_various_pages.py",
+          # "tests/import_scanner_test.py",
+          # "tests/zap.py",
           "tests/notifications_test.py",
           "tests/tool_config.py",
           "openapi-validatator",
+
         ]
         os: [alpine, debian]
       fail-fast: false
@@ -45,7 +52,7 @@ jobs:
 
       # load docker images from build jobs
       - name: Load images from artifacts
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: built-docker-image
           pattern: built-docker-image-*
@@ -54,9 +61,9 @@ jobs:
       - name: Load docker images
         timeout-minutes: 10
         run: |-
-             docker load -i built-docker-image/nginx-${{ matrix.os }}-ubuntu-latest_img
-             docker load -i built-docker-image/django-${{ matrix.os }}-ubuntu-latest_img
-             docker load -i built-docker-image/integration-tests-debian-ubuntu-latest_img
+             docker load -i built-docker-image/nginx-${{ matrix.os }}-linux-amd64_img
+             docker load -i built-docker-image/django-${{ matrix.os }}-linux-amd64_img
+             docker load -i built-docker-image/integration-tests-debian-linux-amd64_img
              docker images
 
       - name: Set integration-test mode

@@ -35,7 +35,7 @@ deduplication, remediation, and reporting.
 Try out DefectDojo on our demo server at [demo.defectdojo.org](https://demo.defectdojo.org)
 
 Log in with username `admin` and password `1Defectdojo@demo#appsec`. Please note that the demo is publicly accessible
-and regularly reset. Do not put sensitive data in the demo.
+and regularly reset. Do not put sensitive data in the demo. An easy way to test Defect Dojo is to upload some [sample scan reports](https://github.com/DefectDojo/django-DefectDojo/tree/master/unittests/scans).
 
 ## Quick Start for Compose V2
 
@@ -129,7 +129,6 @@ Core Moderators can help you with pull requests or feedback on dev ideas:
 
 Moderators can help you with pull requests or feedback on dev ideas:
 * Charles Neill ([@cneill](https://github.com/cneill) | [@ccneill](https://twitter.com/ccneill))
-* Jay Paz ([@jjpaz](https://twitter.com/jjpaz))
 * Blake Owens ([@blakeaowens](https://github.com/blakeaowens))
 
 ## Hall of Fame

@@ -3,11 +3,12 @@ import logging
 
 import html2text
 from cvss import CVSS3
-from defusedxml import ElementTree as etree
+from defusedxml import ElementTree
 from django.conf import settings
 
 from dojo.models import Endpoint, Finding
 from dojo.tools.qualys import csv_parser
+from dojo.utils import parse_cvss_data
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,23 @@ class QualysParser:
         - is_mitigated: Set to true or false based on pressence of "mitigated" in Qualys Scanner output.
         - active: Set to true if status equals active, re-opened, or new; else set to false.
         - cvssv3: Set to CVSS_vector if not null.
+        - verified: Set to true.
+
+        Return the list of fields used in the Qualys CSV Parser.
+
+        Fields:
+        - title: Set to gid and vulnerability name from Qualys Scanner
+        - mitigation: Set to solution from Qualys Scanner
+        - description: Custom description made from: description, category, QID, port, result evidence, first found, last found, and times found.
+        - severity: Set to severity from Qualys Scanner translated into DefectDojo formant.
+        - impact: Set to impact from Qualys Scanner.
+        - date: Set to datetime from Qualys Scanner.
+        - vuln_id_from_tool: Set to gid from Qualys Scanner.
+        - mitigated: Set to the mitigation_date from Qualys Scanner
+        - is_mitigated: Set to true or false based on pressence of "mitigated" in Qualys Scanner output.
+        - active: Set to true if status equals active, re-opened, or new; else set to false.
+        - cvssv3: Set to CVSS_vector if not null.
+        - verified: Set to true.
         """
         return [
             "title",
@@ -43,11 +61,12 @@ class QualysParser:
             "is_mitigated",
             "active",
             "cvssv3",
+            "verified",
         ]
 
     def get_dedupe_fields(self) -> list[str]:
         """
-        Return the list of fields used for deduplication in the Qualys Parser.
+        Return the list of fields used for deduplication in the Qualys and Qualys CSV Parser.
 
         Fields:
         - title: Set to gid and vulnerability name from Qualys Scanner
@@ -334,7 +353,11 @@ def parse_finding(host, tree):
         finding.is_mitigated = temp["mitigated"]
         finding.active = temp["active"]
         if temp.get("CVSS_vector") is not None:
-            finding.cvssv3 = temp.get("CVSS_vector")
+            cvss_data = parse_cvss_data(temp.get("CVSS_vector"))
+            if cvss_data:
+                finding.cvssv3 = cvss_data.get("cvssv3")
+                finding.cvssv3_score = cvss_data.get("cvssv3_score")
+
         if temp.get("CVSS_value") is not None:
             finding.cvssv3_score = temp.get("CVSS_value")
         finding.verified = True
@@ -345,8 +368,8 @@ def parse_finding(host, tree):
 
 
 def qualys_parser(qualys_xml_file):
-    parser = etree.XMLParser()
-    tree = etree.parse(qualys_xml_file, parser)
+    parser = ElementTree.XMLParser()
+    tree = ElementTree.parse(qualys_xml_file, parser)
     host_list = tree.find("HOST_LIST")
     finding_list = []
     if host_list is not None:

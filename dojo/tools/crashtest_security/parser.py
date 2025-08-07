@@ -3,7 +3,7 @@ __author__ = "phylu"
 import json
 import re
 
-from defusedxml import ElementTree as ET
+from defusedxml import ElementTree
 
 from dojo.models import Finding
 
@@ -45,10 +45,7 @@ class CrashtestSecurityJsonParser:
 
                 # Iterate all connected CVE findings if any
                 if "cve_findings" in finding:
-                    for cve_finding in finding["cve_findings"]:
-                        items.append(
-                            self.generate_cve_finding(cve_finding, test),
-                        )
+                    items.extend(self.generate_cve_finding(cve_finding, test) for cve_finding in finding["cve_findings"])
         return items
 
     def create_descriptions_dict(self, data):
@@ -163,7 +160,7 @@ class CrashtestSecurityXmlParser:
         @return xml_tree An xml tree instance. None if error.
         """
         try:
-            tree = ET.parse(xml_output)
+            tree = ElementTree.parse(xml_output)
         except SyntaxError as se:
             raise ValueError(se)
 
