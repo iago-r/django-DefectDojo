@@ -1097,6 +1097,89 @@ class EngagementFilter(EngagementFilterHelper, DojoFilter):
         fields = ["name", "prod_type"]
 
 
+class ProblemFilter(FilterSet):
+    name = CharFilter(lookup_expr="icontains", label="Name")
+    severity = ChoiceFilter(
+        choices=[
+            ("Low", "Low"),
+            ("Medium", "Medium"),
+            ("High", "High"),
+            ("Critical", "Critical"),
+        ],
+        label="Min Severity",
+    )
+    script_id = CharFilter(lookup_expr="icontains", label="Script ID")
+    engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.none(), label="Engagement")
+    product = ModelMultipleChoiceFilter(queryset=Product.objects.none(), label="Product")
+
+    class Meta:
+        model = Finding
+        fields = ["name", "severity", "script_id", "engagement", "product"]
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        self.pid = kwargs.pop("pid", None)
+        super().__init__(*args, **kwargs)
+        self.set_related_object_fields()
+
+    def set_related_object_fields(self):
+        if self.pid is not None:
+            self.form.fields["engagement"].queryset = Engagement.objects.filter(product_id=self.pid)
+            if "product" in self.form.fields:
+                del self.form.fields["product"]
+        else:
+            self.form.fields["product"].queryset = get_authorized_products(Permissions.Product_View)
+            self.form.fields["engagement"].queryset = get_authorized_engagements(Permissions.Engagement_View)
+
+
+class ProblemFindingFilter(FilterSet):
+    name = CharFilter(lookup_expr="icontains", label="Name")
+    severity = MultipleChoiceFilter(
+        choices=[
+            ("Low", "Low"),
+            ("Medium", "Medium"),
+            ("High", "High"),
+            ("Critical", "Critical"),
+        ],
+        label="Severity",
+    )
+    risk = MultipleChoiceFilter(
+        choices=[
+            ("NA", "Nothing selected"),
+            ("Mild", "Mild"),
+            ("Moderate", "Moderate"),
+            ("Severe", "Severe"),
+            ("Critical", "Critical"),
+        ],
+        label="Risk",
+    )
+    script_id = CharFilter(lookup_expr="icontains", label="Script ID")
+    reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none(), label="Reporter")
+    status = ChoiceFilter(choices=[("Yes", "Yes"), ("No", "No")], label="Active")
+    engagement = ModelMultipleChoiceFilter(queryset=Engagement.objects.none(), label="Engagement")
+    product = ModelMultipleChoiceFilter(queryset=Product.objects.none(), label="Product")
+
+    class Meta:
+        model = Finding
+        fields = ["name", "severity", "risk", "script_id", "reporter", "status", "engagement", "product"]
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        self.pid = kwargs.pop("pid", None)
+        super().__init__(*args, **kwargs)
+        self.set_related_object_fields()
+
+    def set_related_object_fields(self):
+        if self.pid is not None:
+            self.form.fields["engagement"].queryset = Engagement.objects.filter(product_id=self.pid)
+            if "product" in self.form.fields:
+                del self.form.fields["product"]
+        else:
+            self.form.fields["product"].queryset = get_authorized_products(Permissions.Product_View)
+            self.form.fields["engagement"].queryset = get_authorized_engagements(Permissions.Engagement_View)
+        self.form.fields["reporter"].queryset = get_authorized_users(Permissions.Finding_View)
+
+
 class ProductEngagementsFilter(DojoFilter):
     engagement__name = CharFilter(field_name="name", lookup_expr="icontains", label="Engagement name contains")
     engagement__lead = ModelChoiceFilter(field_name="lead", queryset=Dojo_User.objects.none(), label="Lead")
@@ -1940,6 +2023,17 @@ class FindingFilterWithoutObjectLookups(FindingFilterHelper, FindingTagStringFil
 class FindingFilter(FindingFilterHelper, FindingTagFilter):
     reporter = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none())
     reviewers = ModelMultipleChoiceFilter(queryset=Dojo_User.objects.none())
+    risk = MultipleChoiceFilter(
+        choices=[
+            ("NA", "Nothing selected"),
+            ("Mild", "Mild"),
+            ("Moderate", "Moderate"),
+            ("Severe", "Severe"),
+            ("Critical", "Critical"),
+        ],
+        method="filter_risk",
+        label="Risk",
+    )
     test__engagement__product__prod_type = ModelMultipleChoiceFilter(
         queryset=Product_Type.objects.none(),
         label="Product Type")
@@ -1952,6 +2046,9 @@ class FindingFilter(FindingFilterHelper, FindingTagFilter):
     test = ModelMultipleChoiceFilter(
         queryset=Test.objects.none(),
         label="Test")
+
+    def filter_risk(self, queryset, name, value):
+        return queryset
 
     if is_finding_groups_enabled():
         finding_group = ModelMultipleChoiceFilter(

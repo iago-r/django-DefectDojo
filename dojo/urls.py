@@ -57,6 +57,7 @@ from dojo.api_v2.views import (
     RegulationsViewSet,
     ReImportScanView,
     RiskAcceptanceViewSet,
+    RiskTriggerViewSet,
     RoleViewSet,
     SLAConfigurationViewset,
     SonarqubeIssueTransitionViewSet,
@@ -92,6 +93,7 @@ from dojo.note_type.urls import urlpatterns as note_type_urls
 from dojo.notes.urls import urlpatterns as notes_urls
 from dojo.notifications.urls import urlpatterns as notifications_urls
 from dojo.object.urls import urlpatterns as object_urls
+from dojo.problem.urls import urlpatterns as problems_urls
 from dojo.product.urls import urlpatterns as prod_urls
 from dojo.product_type.urls import urlpatterns as pt_urls
 from dojo.regulations.urls import urlpatterns as regulations
@@ -180,6 +182,7 @@ v2_api.register(r"questionnaire_answered_questionnaires", QuestionnaireAnsweredS
 v2_api.register(r"questionnaire_engagement_questionnaires", QuestionnaireEngagementSurveyViewSet, basename="engagement_survey")
 v2_api.register(r"questionnaire_general_questionnaires", QuestionnaireGeneralSurveyViewSet, basename="general_survey")
 v2_api.register(r"questionnaire_questions", QuestionnaireQuestionViewSet, basename="question")
+v2_api.register(r"risk_triggers", RiskTriggerViewSet, basename="risk_trigger")
 ur = []
 ur += dev_env_urls
 ur += endpoint_urls
@@ -188,6 +191,7 @@ ur += finding_urls
 ur += finding_group_urls
 ur += home_urls
 ur += metrics_urls
+ur += problems_urls
 ur += prod_urls
 ur += pt_urls
 ur += reports_urls
@@ -235,7 +239,7 @@ urlpatterns = []
 # sometimes urlpatterns needed be added from local_settings.py before other URLs of core dojo
 if hasattr(settings, "PRELOAD_URL_PATTERNS"):
     urlpatterns += settings.PRELOAD_URL_PATTERNS
-
+urlpatterns += [re_path(r"^finding(?:/open)?/", include("risk_plugin.urls"))]
 urlpatterns += [
     # action history
     re_path(r"^{}history/(?P<cid>\d+)/(?P<oid>\d+)$".format(get_system_setting("url_prefix")), views.action_history, name="action_history"),

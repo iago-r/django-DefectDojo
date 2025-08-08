@@ -52,6 +52,7 @@ RUN \
   yarn
 COPY manage.py ./
 COPY dojo/ ./dojo/
+COPY risk_plugin/ ./risk_plugin/
 RUN env DD_SECRET_KEY='.' python3 manage.py collectstatic --noinput && true
 
 FROM nginx:1.29.1-alpine3.22@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
